@@ -1,0 +1,1 @@
+<model><geometryFile>resources\DemoScene\Cube.sgeometry</geometryFile><shader>shaders/pbr/color_only.glsl</shader><property><Vector3>color<value>0.0 0.0 0.0</value></Vector3><Bool>doubleSided<value>false</value></Bool><Bool>useAlpha<value>false</value></Bool></property></model>

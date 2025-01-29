@@ -1,0 +1,19 @@
+// Created by Tree IT
+newmtl mossybark02
+Ka 1 1 1
+Kd 1 1 1
+Ks 0 0 0
+map_Kd mossybark02.png
+
+newmtl stump03
+Ka 1 1 1
+Kd 1 1 1
+Ks 0 0 0
+map_Kd stump03.png
+
+newmtl oak leaf
+Ka 1 1 1
+Kd 1 1 1
+Ks 0 0 0
+map_Kd oak leaf.png
+

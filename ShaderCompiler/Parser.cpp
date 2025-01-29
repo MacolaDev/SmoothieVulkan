@@ -1,0 +1,17 @@
+#include "Parser.h"
+
+using namespace glslang;
+
+std::string InputArguments::compilerFile;
+std::string InputArguments::sourceFile;
+std::string InputArguments::destFile;
+
+TShader::Includer::IncludeResult* SmoothieIncluder::includeSystem(const char* headerName, const char* includerName, size_t inclusionDepth)
+{
+	return nullptr;
+}
+
+TShader::Includer::IncludeResult* SmoothieIncluder::includeLocal(const char* headerName, const char* includerName, size_t inclusionDepth)
+{
+	return nullptr;
+}

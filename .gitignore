@@ -1,0 +1,15 @@
+.vs/
+x64/
+*.vcxproj
+*.vcxproj.user
+*.vcxproj.filters
+CMakeFiles/
+CMakeCache.txt
+*.sln
+*.dir/
+*.cmake
+*.exe
+*.pdb
+*.lib
+*.pyd
+.VsCodeCounter
