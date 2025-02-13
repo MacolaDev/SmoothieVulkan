@@ -2,10 +2,8 @@
 #include <string>
 #include <vector>
 
-class GeometryFile
+struct GeometryFile
 {
-protected:
-	std::string filepath;
 	std::vector<char> vertexData;
 	std::vector<char> indexData;
 
@@ -16,8 +14,6 @@ protected:
 	unsigned int vertexBufferType;
 	unsigned int indexBufferType;
 
-
-public:
 	GeometryFile(const std::string& filepath);
 	GeometryFile() = default;
 };

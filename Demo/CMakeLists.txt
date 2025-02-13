@@ -59,16 +59,16 @@ target_include_directories(Demo PRIVATE ${Vulkan_INCLUDE_DIR})
 set(VULKAN_SDK_PATH $ENV{VULKAN_SDK})
 
 target_link_libraries(Demo PRIVATE  
-${CMAKE_SOURCE_DIR}/lib/Debug/SmoothieEngine.lib 
+debug ${CMAKE_SOURCE_DIR}/lib/Debug/SmoothieEngine.lib 
+optimized ${CMAKE_SOURCE_DIR}/lib/Release/SmoothieEngine.lib 
 Vulkan::Vulkan
-${VULKAN_SDK_PATH}/Lib/glslangd.lib
-${VULKAN_SDK_PATH}/Lib/SPIRV-Toolsd.lib
-${VULKAN_SDK_PATH}/Lib/SPIRV-Tools-optd.lib
 )
+
 
 link_libraries()
 set_target_properties(
     Demo PROPERTIES
 
     RUNTIME_OUTPUT_DIRECTORY_DEBUG ${CMAKE_SOURCE_DIR}/Demo
+    RUNTIME_OUTPUT_DIRECTORY_RELEASE ${CMAKE_SOURCE_DIR}/Demo
 )

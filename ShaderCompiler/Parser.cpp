@@ -2,9 +2,6 @@
 
 using namespace glslang;
 
-std::string InputArguments::compilerFile;
-std::string InputArguments::sourceFile;
-std::string InputArguments::destFile;
 
 TShader::Includer::IncludeResult* SmoothieIncluder::includeSystem(const char* headerName, const char* includerName, size_t inclusionDepth)
 {
@@ -14,4 +11,8 @@ TShader::Includer::IncludeResult* SmoothieIncluder::includeSystem(const char* he
 TShader::Includer::IncludeResult* SmoothieIncluder::includeLocal(const char* headerName, const char* includerName, size_t inclusionDepth)
 {
 	return nullptr;
+}
+
+void SmoothieIncluder::releaseInclude(IncludeResult*)
+{
 }

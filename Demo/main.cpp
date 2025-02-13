@@ -3,17 +3,22 @@
 #include <GLFW/glfw3.h>
 #include <Smoothie.h>
 #include <vector>
+#include "Demo.h"
 
-
-const std::vector<const char*> validationLayers =
+const std::vector<const char*> SMOOTHIE_VALIDATION_LAYERS =
 {
-"VK_LAYER_KHRONOS_validation"
+	"VK_LAYER_KHRONOS_validation"
 };
-
 
 const unsigned int WINDOW_WIDTH = 1280;
 const unsigned int WINDOW_HEIGHT = 720;
+
 GLFWwindow* window = nullptr;
+
+static void mouseCallback(GLFWwindow* window, double xposIn, double yposIn) 
+{
+	FreeCamera::MouseCallback(window, xposIn, yposIn);
+}
 
 int main()
 {
@@ -27,6 +32,13 @@ int main()
 	glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
 	glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
 	window = glfwCreateWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "Vulkan", nullptr, nullptr);
+	
+	//Callback functions
+	glfwSetCursorPosCallback(window, mouseCallback);
+
+
+	//Disable cursor
+	glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
 	//Vulkan extensions
 	uint32_t glfwExtensionCount = 0;
@@ -37,38 +49,29 @@ int main()
 	extensions.push_back(VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME);
 	
 	//vulkan instance
-	auto instance = SmoothieCore::createVulkanInstance(extensions.data(), extensions.size(), true, validationLayers.data(), validationLayers.size());
+	auto instance = SmoothieCore::createVulkanInstance(extensions.data(), extensions.size(), true);
 	VkSurfaceKHR vksurface = nullptr;
 	glfwCreateWindowSurface(instance, window, nullptr, &vksurface);
-
-	auto gpuNames =SmoothieCore::getPhysicalDeviceNames(); 
 	
-	SmoothieMath::Vector3 cameraPosition = { -0.5, 3.0f, 18.0f };
-	Smoothie::Camera camera = Smoothie::Camera(
-		cameraPosition,
-		{ 0.0f, 0.0f, -1.0f },
-		{ 0.0f, 1.0f, 0.0f },
-		45.0f, 1280/720, 0.1f, 100.0f);
-	
-	
+	auto gpuNames = SmoothieCore::getPhysicalDeviceNames(); 
 	
 	//Init engine
 	SmoothieCore::initEngine(
 		0, //Change index to the one you want from the gpuNames
 		vksurface,
 		WINDOW_WIDTH, 
-		WINDOW_HEIGHT, 
-		&camera);
+		WINDOW_HEIGHT);
 
-
-
-
+	SmoothieCore::loadScene("resources/DemoScene/Demo.sscene");
 	while (!glfwWindowShouldClose(window))
 	{
 		SmoothieCore::draw();
+		FreeCamera::updateTime();
+		FreeCamera::KeyboardCallback(window);
 		glfwPollEvents();
 	}
 
+	SmoothieCore::removeScene();
 	SmoothieCore::finalize();
 	glfwTerminate();
 }

@@ -1,13 +1,5 @@
 #version 450
 
-layout(set = 0, binding = 0) uniform UnifomBuffer
-{
-    mat4 projectionMatrix;
-    mat4 viewMatrix;
-    vec3 viewPos;
-    mat4 projectionViewMatrix;
-} Matrices;
-
 //Vertex shader
 #ifdef VERTEX_SHADER
 layout (location = 0) in vec3 aPos; 
@@ -38,6 +30,15 @@ struct ModelMatrices
 	mat4 normalMatrix;
 };
 
+layout(set = 0, binding = 0) uniform UnifomBuffer
+{
+    mat4 projectionMatrix;
+    mat4 viewMatrix;
+    vec3 viewPos;
+    mat4 projectionViewMatrix;
+} Matrices;
+
+
 layout(set = 2, binding = 0, std430) readonly buffer ModelData
 {
 	ModelMatrices modelMatrices[];
@@ -61,7 +62,6 @@ void main()
 
     TBN = mat3(T, B, N); 
     gl_Position = Matrices.projectionViewMatrix * FragPos; 
-
 }
 #endif
 

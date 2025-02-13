@@ -12,7 +12,6 @@ static inline int getIntFromFile(std::ifstream& file) {
 
 GeometryFile::GeometryFile(const std::string& filepath) : indexBufferType(0)
 {
-	this->filepath = filepath;
 	auto file = std::ifstream(filepath, std::ios_base::binary);
 
 	vertexBufferType = getIntFromFile(file);

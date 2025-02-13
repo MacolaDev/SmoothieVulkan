@@ -1,27 +1,9 @@
 #version 450
 
-//Vertex shader
-#ifdef VERTEX_SHADER
-
-layout (location = 0) in vec2 aPos;
-layout (location = 1) in vec2 aTexCoords;
-out vec2 TexCoords;
-
-void main()
-{
-	gl_Position = vec4(aPos.x, aPos.y, 0.0, 1.0);
-	TexCoords = aTexCoords;
-}
-
-#endif
-
-
 //Fragment shader
 #ifdef FRAGMENT_SHADER
-
-
-in vec2 TexCoords;
-out vec2 FragColor;
+layout (location = 0) in vec2 TexCoords;
+layout (location = 0) out vec2 FragColor;
 
 const float PI = 3.14159265359;
 vec3 ImportanceSampleGGX(vec2 Xi, vec3 N, float roughness)
@@ -83,7 +65,6 @@ float GeometrySmith(vec3 N, vec3 V, vec3 L, float roughness)
 	return ggx1 * ggx2;
 }
 
-
 vec2 IntegrateBRDF(float NdotV, float roughness)
 {
 	vec3 V;
@@ -121,5 +102,4 @@ void main()
 	vec2 integratedBRDF = IntegrateBRDF(TexCoords.x, TexCoords.y);
 	FragColor = integratedBRDF;
 }
-
 #endif

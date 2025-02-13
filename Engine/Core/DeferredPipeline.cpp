@@ -8,6 +8,11 @@
 
 #include "SwapChain.h"
 #include "Core/DeviceDependency.h"
+#include "RenderPass.h"
+#include "Core/RenderPass.h"
+#include "Effects/Skybox.h"
+#include "Effects/Bloom.h"
+#include "Effects/DeferredPostprocessing.h"
 
 static Image createImageFromData(unsigned int texWidth, unsigned int texHeight, VkFormat format)
 {
@@ -20,7 +25,7 @@ static Image createImageFromData(unsigned int texWidth, unsigned int texHeight, 
 	createImage.arrayLayers = 1;
 	createImage.tiling = VK_IMAGE_TILING_OPTIMAL;
 	createImage.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-	createImage.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+	createImage.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
 	createImage.samples = VK_SAMPLE_COUNT_1_BIT;
 	createImage.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 	createImage.format = format;
@@ -84,108 +89,95 @@ static Image createImageDepth(unsigned int texWidth, unsigned int texHeight, VkF
 	return image;
 }
 
-
-
-void gBufferPass::create(unsigned int width, unsigned int height)
+void gBuffer::translateAttachmentToShaderReadOnly(VkCommandBuffer commandBuffer) const
 {
-	//Position attachment
-	VkAttachmentDescription gPositionDescription{};
-	gPositionDescription.format = VK_FORMAT_R32G32B32A32_SFLOAT;
-	gPositionDescription.samples = VK_SAMPLE_COUNT_1_BIT;
-	gPositionDescription.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-	gPositionDescription.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-	gPositionDescription.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-	gPositionDescription.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-	gPositionDescription.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-	gPositionDescription.finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+	VkImageMemoryBarrier imageMemoryBarier{};
+	imageMemoryBarier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+	imageMemoryBarier.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+	imageMemoryBarier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+	imageMemoryBarier.oldLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+	imageMemoryBarier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+	imageMemoryBarier.image = gPosition.image;
+	imageMemoryBarier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+	imageMemoryBarier.subresourceRange.baseMipLevel = 0;
+	imageMemoryBarier.subresourceRange.levelCount = 1;
+	imageMemoryBarier.subresourceRange.baseArrayLayer = 0;
+	imageMemoryBarier.subresourceRange.layerCount = 1;
 
-	//Normals
-	VkAttachmentDescription gNormalDescription{};
-	gNormalDescription = gPositionDescription;
-	gNormalDescription.format = VK_FORMAT_R16G16B16A16_SFLOAT;
+	VkImageMemoryBarrier gPositionBarrier = imageMemoryBarier;
+	gPositionBarrier.image = gPosition.image;
 
-	//Albedo channel
-	VkAttachmentDescription gAlbedoDescription{};
-	gAlbedoDescription = gPositionDescription;
-	gAlbedoDescription.format = VK_FORMAT_R8G8B8A8_SRGB;
+	VkImageMemoryBarrier gNormalBarrier = imageMemoryBarier;
+	gNormalBarrier.image = gNormal.image;
 
-	//Metalic, roughness, AO
-	VkAttachmentDescription gMRAODescription{};
-	gMRAODescription = gPositionDescription;
-	gMRAODescription.format = VK_FORMAT_R8G8B8A8_UNORM;
+	VkImageMemoryBarrier gAlbedoBarrier = imageMemoryBarier;
+	gAlbedoBarrier.image = gAlbedo.image;
 
-	//Depth 
-	const auto depthFormat = DeviceDependencies::getSupportedDepthFormat();
-	VkAttachmentDescription gDepthDescription{};
-	gDepthDescription.format = depthFormat;
-	gDepthDescription.samples = VK_SAMPLE_COUNT_1_BIT;
-	gDepthDescription.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-	gDepthDescription.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-	gDepthDescription.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-	gDepthDescription.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-	gDepthDescription.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-	gDepthDescription.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+	VkImageMemoryBarrier gMRAOBarrier = imageMemoryBarier;
+	gMRAOBarrier.image = gMRAO.image;
 
+	VkImageMemoryBarrier gDepthBarrier = imageMemoryBarier;
+	gDepthBarrier.image = gDepth.image;
+	gDepthBarrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
+	
+	VkImageMemoryBarrier imageMemoryBariers[] = { gPositionBarrier, gNormalBarrier, gAlbedoBarrier, gMRAOBarrier, gDepthBarrier };
+	vkCmdPipelineBarrier(commandBuffer,
+		VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+		VK_DEPENDENCY_BY_REGION_BIT,
+		0, nullptr,
+		0, nullptr,
+		4, imageMemoryBariers);
+}
 
-	VkAttachmentReference colorAttachmentRefs[4] =
-	{
-		{0, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL }, // Position
-		{1, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL }, // Normals
-		{2, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL }, // Albedo
-		{3, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL }  // metalic, roughness, ao
-	};
+void gBuffer::translateShaderReadOnlyToAttachment(VkCommandBuffer commandBuffer) const
+{
+	VkImageMemoryBarrier imageMemoryBarier{};
+	imageMemoryBarier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+	imageMemoryBarier.srcAccessMask = VK_ACCESS_SHADER_READ_BIT;
+	imageMemoryBarier.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+	imageMemoryBarier.oldLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+	imageMemoryBarier.newLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+	imageMemoryBarier.image = gPosition.image;
+	imageMemoryBarier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+	imageMemoryBarier.subresourceRange.baseMipLevel = 0;
+	imageMemoryBarier.subresourceRange.levelCount = 1;
+	imageMemoryBarier.subresourceRange.baseArrayLayer = 0;
+	imageMemoryBarier.subresourceRange.layerCount = 1;
 
-	VkAttachmentReference depthAttachmentRef =
-	{
-		4, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
-	};
+	VkImageMemoryBarrier gPositionBarrier = imageMemoryBarier;
+	gPositionBarrier.image = gPosition.image;
 
+	VkImageMemoryBarrier gNormalBarrier = imageMemoryBarier;
+	gNormalBarrier.image = gNormal.image;
 
-	VkSubpassDescription subpass = {};
-	subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
-	subpass.colorAttachmentCount = 4;
-	subpass.pColorAttachments = colorAttachmentRefs;
-	subpass.pDepthStencilAttachment = &depthAttachmentRef;
+	VkImageMemoryBarrier gAlbedoBarrier = imageMemoryBarier;
+	gAlbedoBarrier.image = gAlbedo.image;
 
-	VkAttachmentDescription attachments[5] = 
-	{ 
-		gPositionDescription, 
-		gNormalDescription, 
-		gAlbedoDescription, 
-		gMRAODescription, 
-		gDepthDescription 
-	};
+	VkImageMemoryBarrier gMRAOBarrier = imageMemoryBarier;
+	gMRAOBarrier.image = gMRAO.image;
 
-	VkRenderPassCreateInfo renderPassInfo = {};
-	renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-	renderPassInfo.attachmentCount = 5;
-	renderPassInfo.pAttachments = attachments;
-	renderPassInfo.subpassCount = 1;
-	renderPassInfo.pSubpasses = &subpass;
+	VkImageMemoryBarrier gDepthBarrier = imageMemoryBarier;
+	gDepthBarrier.image = gDepth.image;
+	gDepthBarrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
 
+	VkImageMemoryBarrier imageMemoryBariers[] = { gPositionBarrier, gNormalBarrier, gAlbedoBarrier, gMRAOBarrier, gDepthBarrier };
+	vkCmdPipelineBarrier(commandBuffer,
+		VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+		VK_DEPENDENCY_BY_REGION_BIT,
+		0, nullptr,
+		0, nullptr,
+		4, imageMemoryBariers);
+}
 
-	VkSubpassDependency dependency{};
-	dependency.srcSubpass = 0;
-	dependency.dstSubpass = 0;
-
-	dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
-	dependency.srcAccessMask = 0;
-
-	dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
-	dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
-	dependency.dependencyFlags = 0;
-
-	renderPassInfo.dependencyCount = 0;
-	renderPassInfo.pDependencies = &dependency;
-
-
-	vkCreateRenderPass(SmoothieCore::getDevice(), &renderPassInfo, nullptr, &renderPass);
+void gBuffer::create(unsigned int width, unsigned int height)
+{
 
 	//gBuffer images
 	gPosition = createImageFromData(width, height, VK_FORMAT_R32G32B32A32_SFLOAT);
 	gNormal = createImageFromData(width, height, VK_FORMAT_R16G16B16A16_SFLOAT);
-	gAlbedo = createImageFromData(width, height, VK_FORMAT_R8G8B8A8_SRGB);
+	gAlbedo = createImageFromData(width, height, VK_FORMAT_R8G8B8A8_UNORM);
 	gMRAO = createImageFromData(width, height, VK_FORMAT_R8G8B8A8_UNORM);
+	const auto depthFormat = DeviceDependencies::getSupportedDepthFormat();
 	gDepth = createImageDepth(width, height, depthFormat);
 
 	//gBuffer framebuffer
@@ -200,7 +192,7 @@ void gBufferPass::create(unsigned int width, unsigned int height)
 
 	VkFramebufferCreateInfo createInfo{};
 	createInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-	createInfo.renderPass = renderPass;
+	createInfo.renderPass = gBufferPass::renderPass;
 	createInfo.attachmentCount = 5;
 	createInfo.pAttachments = attachmentsImageViews;
 	createInfo.width = width;
@@ -212,7 +204,7 @@ void gBufferPass::create(unsigned int width, unsigned int height)
 	//Render pass begin info
 	beginInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
 	beginInfo.framebuffer = framebuffer;
-	beginInfo.renderPass = renderPass;
+	beginInfo.renderPass = gBufferPass::renderPass;
 
 	VkClearValue clearColor{};
 	clearColor.color = { 0.0f, 0.0f, 0.0f, 1.0f };
@@ -235,9 +227,10 @@ void gBufferPass::create(unsigned int width, unsigned int height)
 	viewport.minDepth = 0.0f;
 	viewport.maxDepth = 1.0f;
 
+
 }
 
-void gBufferPass::destroy()
+void gBuffer::destroy()
 {
 	
 	vkDestroyFramebuffer(SmoothieCore::getDevice(), framebuffer, nullptr);
@@ -248,69 +241,188 @@ void gBufferPass::destroy()
 	gAlbedo.destroyImage();
 	gNormal.destroyImage();
 	gPosition.destroyImage();
-
-	vkDestroyRenderPass(SmoothieCore::getDevice(), renderPass, nullptr);
-	renderPass = nullptr;
 }
 
-void gBufferPass::update(unsigned int width, unsigned int height)
+void gBuffer::update(unsigned int width, unsigned int height)
 {
 	destroy();
 	create(width, height);
 }
 
-void gBufferPass::beginPass(VkCommandBuffer commandBuffer) const
+void gBuffer::beginPass(VkCommandBuffer commandBuffer) const
 {
 	vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
 	vkCmdBeginRenderPass(commandBuffer, &beginInfo, VK_SUBPASS_CONTENTS_INLINE);
 }
 
-void gBufferPass::endPass(VkCommandBuffer commandBuffer) const
+void gBuffer::endPass(VkCommandBuffer commandBuffer) const
 {
 	vkCmdEndRenderPass(commandBuffer);
 }
 
-gBufferPass DeferredPipeline::gBuffer;
-Smoothie::Model DeferredPipeline::testModel;
+GraphicsPass1 DeferredPipeline::pass1;
 
 void DeferredPipeline::create(unsigned int width, unsigned int height)
 {
-	gBuffer.create(width, height);
-	SmoothieMath::Matrix4x4 modelMatrix;
-	modelMatrix.transformMatrix({ 0.717276f, 0.000000f, 0.019547f }, {0, 0,0}, {1, 1, 1});
-	testModel = Smoothie::Model("resources/DemoScene/House/House.smodel", modelMatrix);
+	pass1.create(width, height);
 }
 
 void DeferredPipeline::destroy()
 {
-	testModel.destroy();
-	gBuffer.destroy();
+	pass1.destroy();
 }
 
 void DeferredPipeline::update(unsigned int width, unsigned int height)
 {
-	gBuffer.update(width, height);
+	pass1.update(width, height);
 }
+
+std::list<Smoothie::Model*> DeferredPipeline::PBRModels;
+std::list<Smoothie::Model*> DeferredPipeline::HDRModels;
 
 void DeferredPipeline::draw(VkCommandBuffer commandBuffer, unsigned int imageIndex)
 {
-	gBuffer.beginPass(commandBuffer);
-	testModel.bindAndDraw(commandBuffer);
-	gBuffer.endPass(commandBuffer);
+	//PBR pass
+	pass1._gBufferPass.beginPass(commandBuffer);
+	for (auto model : PBRModels) 
+	{
+		model->bindAndDraw(commandBuffer);
+	}
+	pass1._gBufferPass.endPass(commandBuffer);
 
+	//Screen space effects with gBuffer data
+	pass1._gBufferPass.translateAttachmentToShaderReadOnly(commandBuffer);
 	
-	VkMemoryBarrier memoryBarier{};
-	memoryBarier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
-	memoryBarier.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-	memoryBarier.dstAccessMask = 0;
+	pass1.pbr.draw(commandBuffer);
+
+	pass1._gBufferPass.translateShaderReadOnlyToAttachment(commandBuffer);
 	
+	//HDR pass
+	pass1._HDRPass.beginPass(commandBuffer);
+	Skybox::draw(commandBuffer);
+	for (auto model : HDRModels)
+	{
+		model->bindAndDraw(commandBuffer);
+	}
+	pass1._HDRPass.endPass(commandBuffer);
+	
+	//Post processing effects
+	pass1._HDRPass.translateAttachmentToShaderReadOnly(commandBuffer);
+	Bloom::bindAndDraw(commandBuffer);
+	DeferredPostprocessing::draw(commandBuffer, imageIndex);
+	pass1._HDRPass.translateShaderReadOnlyToAttachment(commandBuffer);
+	
+}
+
+void GraphicsPass1::create(unsigned int width, unsigned int height)
+{
+	_gBufferPass.create(width, height);
+	_HDRPass.create(width, height, &_gBufferPass.gDepth);
+	pbr.create(width, height, _gBufferPass, _HDRPass.HDRImage.imageView);
+	Bloom::create(width, height, _HDRPass.HDRImage);
+	const auto bloomImage = Bloom::getBloomImage();
+	DeferredPostprocessing::create(_HDRPass.HDRImage, bloomImage);
+}
+
+void GraphicsPass1::destroy()
+{
+	DeferredPostprocessing::destroy();
+	Bloom::destroy();
+	pbr.destroy();
+	_HDRPass.destroy();
+	_gBufferPass.destroy();
+}
+
+void GraphicsPass1::update(unsigned int width, unsigned int height)
+{
+
+}
+
+void GraphicsPass1::bind(VkCommandBuffer commandBuffer) const
+{
+
+}
+
+void HDR::create(unsigned int width, unsigned int height, Image* gBufferDepthImage)
+{
+	HDRImage = createImageFromData(width, height, VK_FORMAT_R16G16B16A16_SFLOAT);
+
+	VkImageView attachmentsImageViews[] =
+	{
+		HDRImage.imageView, gBufferDepthImage->imageView
+	};
+
+	VkFramebufferCreateInfo createInfo{};
+	createInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+	createInfo.renderPass = HDRPass::renderPass;
+	createInfo.attachmentCount = 2;
+	createInfo.pAttachments = attachmentsImageViews;
+	createInfo.width = width;
+	createInfo.height = height;
+	createInfo.layers = 1;
+
+	vkCreateFramebuffer(SmoothieCore::getDevice(), &createInfo, nullptr, &framebuffer);
+
+	//Render pass begin info
+	beginInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+	beginInfo.framebuffer = framebuffer;
+	beginInfo.renderPass = HDRPass::renderPass;
+
+	VkClearValue clearColor{};
+	clearColor.color = { 0.0f, 0.0f, 0.0f, 1.0f };
+
+	VkClearValue depth{};
+	depth.depthStencil.depth = 1.0f;
+
+	static VkClearValue clearValues[] = { clearColor, depth };
+	beginInfo.clearValueCount = 2;
+	beginInfo.pClearValues = clearValues;
+
+	beginInfo.renderArea.extent = { width, height };
+	beginInfo.renderArea.offset = { 0, 0 };
+
+	//Viewport data
+	viewport.x = 0.0f;
+	viewport.y = 0.0f;
+	viewport.width = static_cast<float>(width);
+	viewport.height = static_cast<float>(height);
+	viewport.minDepth = 0.0f;
+	viewport.maxDepth = 1.0f;
+}
+
+void HDR::destroy()
+{
+
+	vkDestroyFramebuffer(SmoothieCore::getDevice(), framebuffer, nullptr);
+	framebuffer = nullptr;
+	HDRImage.destroyImage();
+}
+
+void HDR::update(unsigned int width, unsigned int height)
+{
+
+}
+
+void HDR::beginPass(VkCommandBuffer commandBuffer) const
+{
+	vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
+	vkCmdBeginRenderPass(commandBuffer, &beginInfo, VK_SUBPASS_CONTENTS_INLINE);
+}
+
+void HDR::endPass(VkCommandBuffer commandBuffer) const
+{
+	vkCmdEndRenderPass(commandBuffer);
+}
+
+void HDR::translateAttachmentToShaderReadOnly(VkCommandBuffer commandBuffer) const
+{
 	VkImageMemoryBarrier imageMemoryBarier{};
 	imageMemoryBarier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
 	imageMemoryBarier.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-	imageMemoryBarier.dstAccessMask = VK_ACCESS_NONE;
-	imageMemoryBarier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-	imageMemoryBarier.newLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
-	imageMemoryBarier.image = SwapChain::getSwapChainImage(imageIndex);
+	imageMemoryBarier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+	imageMemoryBarier.oldLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+	imageMemoryBarier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+	imageMemoryBarier.image = HDRImage.image;
 	imageMemoryBarier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
 	imageMemoryBarier.subresourceRange.baseMipLevel = 0;
 	imageMemoryBarier.subresourceRange.levelCount = 1;
@@ -318,19 +430,33 @@ void DeferredPipeline::draw(VkCommandBuffer commandBuffer, unsigned int imageInd
 	imageMemoryBarier.subresourceRange.layerCount = 1;
 
 	vkCmdPipelineBarrier(commandBuffer,
-		VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
-		0,
-		1, &memoryBarier,
+		VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+		VK_DEPENDENCY_BY_REGION_BIT,
+		0, nullptr,
 		0, nullptr,
 		1, &imageMemoryBarier);
 }
 
-gBufferPass DeferredPipeline::get_gBufferPass()
+void HDR::translateShaderReadOnlyToAttachment(VkCommandBuffer commandBuffer) const
 {
-	return gBuffer;
-}
+	VkImageMemoryBarrier imageMemoryBarier{};
+	imageMemoryBarier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+	imageMemoryBarier.srcAccessMask = VK_ACCESS_SHADER_READ_BIT;
+	imageMemoryBarier.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+	imageMemoryBarier.oldLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+	imageMemoryBarier.newLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+	imageMemoryBarier.image = HDRImage.image;
+	imageMemoryBarier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+	imageMemoryBarier.subresourceRange.baseMipLevel = 0;
+	imageMemoryBarier.subresourceRange.levelCount = 1;
+	imageMemoryBarier.subresourceRange.baseArrayLayer = 0;
+	imageMemoryBarier.subresourceRange.layerCount = 1;
 
-VkRenderPass DeferredPipeline::get_gBufferRenderPass()
-{
-	return gBuffer.renderPass;
+
+	vkCmdPipelineBarrier(commandBuffer,
+		VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+		VK_DEPENDENCY_BY_REGION_BIT,
+		0, nullptr,
+		0, nullptr,
+		1, &imageMemoryBarier);
 }

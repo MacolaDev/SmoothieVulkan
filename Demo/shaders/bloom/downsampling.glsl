@@ -1,25 +1,29 @@
 #version 450
 
-
-
-
 #ifdef FRAGMENT_SHADER
-uniform sampler2D srcTexture;
-uniform vec2 srcResolution;
+layout(location = 0) in vec2 TexCoords;
+layout(location = 0) out vec3 downsample;
 
-// which mip we are writing to, used for Karis average
-uniform int mipLevel = 1;
+layout(push_constant, std430) uniform pc
+{
+	vec2 srcResolution;
+	int mipLevel;
+};
 
-in vec2 TexCoords;
-out vec3 downsample;
+layout(set = 0, binding = 0) uniform sampler2D srcTexture;
+
 
 vec3 PowVec3(vec3 v, float p)
 {
     return vec3(pow(v.x, p), pow(v.y, p), pow(v.z, p));
 }
 
+//TODO: Make this non-constant
 const float invGamma = 1.0 / 2.2;
-vec3 ToSRGB(vec3 v)   { return PowVec3(v, invGamma); }
+vec3 ToSRGB(vec3 v)   
+{ 
+	return PowVec3(v, invGamma); 
+}
 
 float sRGBToLuma(vec3 col)
 {
@@ -34,7 +38,7 @@ float KarisAverage(vec3 col)
 	return 1.0f / (1.0f + luma);
 }
 
-// NOTE: This is the readable version of this shader. It will be optimized!
+
 void main()
 {
 	vec2 srcTexelSize = 1.0 / srcResolution;
@@ -108,26 +112,5 @@ void main()
 	  break;
 	}
 }
-
-
-
 #endif
 
-
-
-
-
-//Vertex shader
-#ifdef VERTEX_SHADER
-
-layout (location = 0) in vec2 aPos;
-layout (location = 1) in vec2 aTexCoords;
-
-out vec2 TexCoords;
-
-void main()
-{
-	gl_Position = vec4(aPos.x, aPos.y, 0.0, 1.0);
-	TexCoords = aTexCoords;
-}
-#endif

@@ -5,22 +5,29 @@
 #include <optional>
 #include "UniformBuffers.h"
 #include "Camera.h"
+#include "Core/Scene.h"
 
 class SmoothieCore
 {
     friend class SmoothieVulkanCore;
 
     static bool isEngineReady;
-    static Smoothie::Camera* camera;
+    static Scene* scene;
 
 public:
-    static void initEngine(unsigned int GPUIndex, VkSurfaceKHR surface, unsigned int windowWidth, unsigned int windowHeight, Smoothie::Camera* camera);
+    static void initEngine(unsigned int GPUIndex, VkSurfaceKHR surface, unsigned int windowWidth, unsigned int windowHeight);
     static void finalize();
     static void draw();
 
-    static VkInstance createVulkanInstance(const char* const* extensionNames, size_t extensionCount, bool useDebugging, const char* const* layerNames = nullptr, size_t layerCount = 0);
+    static VkInstance createVulkanInstance(const char* const* extensionNames, size_t extensionCount, bool useValidationLayers);
 
     static std::vector<std::string> getPhysicalDeviceNames();
+
+    static void loadScene(const std::string& scene_file);
+    static void removeScene();
+
+    //Updates render engine with new camera data.
+    static void updateCameraData(const Smoothie::Camera& camera);
 
 //Conteains Vulkan-related stuff for engine
 #ifdef _SMOOTHIE_ENGINE
@@ -41,8 +48,6 @@ private:
     static const char* const* extensionNames;
     static size_t extensionCount;
     static bool useDebugging;
-    static const char* const* layerNames;
-    static size_t layerCount;
 
 
     //Creates physical device and logical device.

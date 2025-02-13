@@ -1,37 +1,17 @@
 #version 450 core
 
-//Vertx shader
-#ifdef VERTEX_SHADER
-
-
-
-layout (location = 0) in vec3 aPos;
-
-out vec3 TexCoords;
-
-uniform mat4 projection;
-uniform mat4 view;
-
-void main()
-{
-	TexCoords = aPos;
-	vec4 position = projection * view * vec4(aPos, 1.0);
-	gl_Position = position.xyzw;
-}
-
-#endif
-
-//Fragment shader
 #ifdef FRAGMENT_SHADER
+layout (location = 0) in vec3 TexCoords;
+layout (location = 0) out vec4 FragColor;
 
+layout (set = 0, binding = 0) uniform samplerCube environmentMap;
 
-
-
-out vec4 FragColor;
-in vec3 TexCoords;
-
-uniform samplerCube environmentMap;
-uniform float roughness;
+layout(push_constant, std430) uniform pc
+{
+	mat4 projection;
+	mat4 view;
+    float roughness;
+};
 
 const float PI = 3.14159265359;
 
@@ -55,7 +35,6 @@ vec3 ImportanceSampleGGX(vec2 Xi, vec3 N, float roughness)
 	return normalize(sampleVec);
 }
 
-
 float VanDerCorpus(uint n, uint base)
 {
 	float invBase = 1.0 / float(base);
@@ -78,7 +57,6 @@ vec2 Hammersley(uint i, uint N)
 	return vec2(float(i)/float(N), VanDerCorpus(i, 2u));
 }
 
-
 float DistributionGGX(vec3 N, vec3 H, float roughness)
 {
     float a = roughness*roughness;
@@ -92,6 +70,7 @@ float DistributionGGX(vec3 N, vec3 H, float roughness)
 
     return nom / denom;
 }
+
 void main()
 {
 	vec3 N = normalize(TexCoords);
@@ -126,7 +105,6 @@ void main()
 	}
 	prefilteredColor = prefilteredColor / totalWeight;
 	FragColor = vec4(prefilteredColor, 1.0);
-
 
 }
 #endif

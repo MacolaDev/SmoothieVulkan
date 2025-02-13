@@ -5,7 +5,7 @@
 #include <iostream>
 #include <set>
 #include <Core/DeviceDependency.h>
-
+#include "Smoothie.h"
 VkInstance SmoothieCore::instance = nullptr;
 VkPhysicalDevice SmoothieCore::physicalDevice = nullptr;
 VkDevice SmoothieCore::device = nullptr;
@@ -22,8 +22,6 @@ VkQueue SmoothieCore::presentQueue = nullptr;
 const char* const* SmoothieCore::extensionNames = nullptr;
 size_t SmoothieCore::extensionCount = 0;
 bool SmoothieCore::useDebugging = false;
-const char* const* SmoothieCore::layerNames = nullptr;
-size_t SmoothieCore::layerCount = 0;
 
 
 
@@ -61,22 +59,18 @@ VkResult CreateDebugUtilsMessengerEXT(
 }
 
 
-
+#include "Smoothie.h"
 VkInstance SmoothieCore::createVulkanInstance(
 	const char* const* extensionNames, 
 	size_t extensionCount,
-	bool useDebugging, 
-	const char* const* layerNames, 
-	size_t layerCount
+	bool useDebugging
 )
 {
 	//Appending data
 	SmoothieCore::extensionNames = extensionNames;
 	SmoothieCore::extensionCount = extensionCount;
 	SmoothieCore::useDebugging = useDebugging;
-	SmoothieCore::layerNames = layerNames;
-	SmoothieCore::layerCount = layerCount;
-
+	
 	//App creation
 	VkApplicationInfo appInfo{};
 	appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
@@ -85,59 +79,23 @@ VkInstance SmoothieCore::createVulkanInstance(
 	appInfo.pEngineName = "Smoothie";
 	appInfo.engineVersion = VK_MAKE_VERSION(1, 0, 0);
 	appInfo.apiVersion = VK_API_VERSION_1_3;
-	
+
 	//Instance
 	VkInstanceCreateInfo createInfo{};
 	createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
 	createInfo.pApplicationInfo = &appInfo;
 
+	createInfo.enabledLayerCount = 0;
+	createInfo.ppEnabledLayerNames = nullptr;
 	if (useDebugging)
 	{
-		createInfo.enabledLayerCount = static_cast<unsigned int>(layerCount);
-		createInfo.ppEnabledLayerNames = layerNames;
-
-		VkDebugUtilsMessengerCreateInfoEXT debugCreateInfo{};
-		debugCreateInfo.sType =
-			VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
-
-		
-		debugCreateInfo.messageSeverity =
-			VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT |
-			VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT |
-			VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
-		
-		debugCreateInfo.messageType =
-			VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT |
-			VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT |
-			VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
-		
-		debugCreateInfo.pfnUserCallback = debugCallback;
-		
-
-		// Validation features setup
-		VkValidationFeatureDisableEXT disabledFeatures[] = {
-			VK_VALIDATION_FEATURE_DISABLE_UNIQUE_HANDLES_EXT
-		};
-
-		VkValidationFeaturesEXT validationFeatures{};
-		validationFeatures.sType = VK_STRUCTURE_TYPE_VALIDATION_FEATURES_EXT;
-		validationFeatures.disabledValidationFeatureCount = 1;
-		validationFeatures.pDisabledValidationFeatures = disabledFeatures;
-
-		createInfo.pNext = &validationFeatures;
-		
-		createInfo.enabledExtensionCount = static_cast<unsigned int>(extensionCount);
-		createInfo.ppEnabledExtensionNames = extensionNames;
-
+		createInfo.enabledLayerCount = static_cast<unsigned int>(SMOOTHIE_VALIDATION_LAYERS.size());
+		createInfo.ppEnabledLayerNames = SMOOTHIE_VALIDATION_LAYERS.data();
 	}
-	else
-	{
-		createInfo.enabledLayerCount = 0;
-		createInfo.pNext = nullptr;
-		
-		createInfo.enabledExtensionCount = static_cast<uint32_t>(extensionCount);
-		createInfo.ppEnabledExtensionNames = extensionNames;
-	}
+	
+	createInfo.pNext = nullptr;
+	createInfo.enabledExtensionCount = static_cast<unsigned int>(extensionCount);
+	createInfo.ppEnabledExtensionNames = extensionNames;
 
 	VkResult restult = vkCreateInstance(&createInfo, nullptr, &instance);
 	if (restult != VK_SUCCESS)
@@ -314,10 +272,7 @@ void SmoothieCore::initVulkan(unsigned int GPUIndex, VkSurfaceKHR surface)
 	poolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
 	poolInfo.queueFamilyIndex = queueFamilyGraphicsIndex.value();
 
-	if (vkCreateCommandPool(device, &poolInfo, nullptr, &commandPool))
-	{
-		std::cout << __FUNCTION__": Can't create main command pool! " << std::endl;
-	}
+	vkCreateCommandPool(device, &poolInfo, nullptr, &commandPool);
 }
 
 VkInstance SmoothieCore::getInstance()

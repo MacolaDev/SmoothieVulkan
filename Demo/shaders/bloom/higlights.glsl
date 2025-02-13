@@ -1,9 +1,10 @@
 #version 450
 
 #ifdef FRAGMENT_SHADER
-in vec2 TexCoords;
-out vec4 FragColor;
-uniform sampler2D HDRITexture;
+
+layout(location = 0) in vec2 TexCoords;
+layout(location = 0) out vec4 FragColor;
+layout(set = 0, binding = 0) uniform sampler2D HDRITexture;
 
 void main()
 {
@@ -14,18 +15,5 @@ void main()
 		return;
 	}
 	FragColor = vec4(0.0f, 0.0f, 0.0f, 1.0f);
-}
-#endif
-
-//Vertex shader
-#ifdef VERTEX_SHADER
-layout (location = 0) in vec2 aPos;
-layout (location = 1) in vec2 aTexCoords;
-out vec2 TexCoords;
-
-void main()
-{
-	gl_Position = vec4(aPos.x, aPos.y, 0.0, 1.0);
-	TexCoords = aTexCoords;
 }
 #endif

@@ -14,6 +14,8 @@ class SmoothieIncluder: public glslang::TShader::Includer
 public:
 	IncludeResult* includeSystem(const char* headerName, const char* includerName, size_t inclusionDepth) override;
 	IncludeResult* includeLocal(const char* headerName, const char* includerName, size_t inclusionDepth) override;
+	void releaseInclude(IncludeResult*) override;
+
 private:
 
 };

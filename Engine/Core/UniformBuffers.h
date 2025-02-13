@@ -39,6 +39,5 @@ public:
 
 struct StandardUnifromBuffers 
 {
-	static UniformBuffers buffer1;
 	static UniformBuffers buffer2;
 };

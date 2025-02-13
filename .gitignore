@@ -13,3 +13,7 @@ CMakeCache.txt
 *.lib
 *.pyd
 .VsCodeCounter
+*.sshader
+*.pyc
+*.exp
+Exporter/paths.txt

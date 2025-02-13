@@ -5,6 +5,8 @@
 #include "DeferredPipeline.h"
 #include "SwapChain.h"
 
+#include "Core/ThreadSafety.h"
+
 VkCommandBuffer Renderer::renderCommandBuffer = nullptr;
 
 VkSemaphore Renderer::imageAvailableSemaphore = nullptr;
@@ -39,6 +41,8 @@ void Renderer::createRenderer()
 
 }
 
+static std::mutex renderMutex;
+
 void Renderer::draw()
 {
 	vkWaitForFences(SmoothieCore::getDevice(), 1, &fence, VK_TRUE, UINT64_MAX);
@@ -69,9 +73,8 @@ void Renderer::draw()
 	submitInfo.pCommandBuffers = &renderCommandBuffer;
 	submitInfo.signalSemaphoreCount = 1;
 	submitInfo.pSignalSemaphores = &renderFinishedSemaphore;
-	auto status = vkGetFenceStatus(SmoothieCore::getDevice(), fence);
-	vkQueueSubmit(SmoothieCore::getGraphicsQueue(), 1, &submitInfo, fence);
 
+	vkQueueSubmit(SmoothieCore::getGraphicsQueue(), 1, &submitInfo, fence);
 
 	VkPresentInfoKHR presentInfo{};
 	presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
@@ -83,6 +86,7 @@ void Renderer::draw()
 	presentInfo.pSwapchains = &swapchain;
 	presentInfo.pImageIndices = &imageIndex;
 
+	
 	vkQueuePresentKHR(SmoothieCore::getPresentQueue(), &presentInfo);
 }
 

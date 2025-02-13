@@ -403,7 +403,7 @@ void Matrix4x4::perspectiveProjection( float fovy, float aspec, float zNear, flo
 {	
 	float toRadians = fovy*pi/180;
 	float f = 1/std::tan(toRadians/2);
-	matrix[0][0] = -f / aspec;
+	matrix[0][0] = f / aspec;
 	matrix[1][1] = f;
 	float value = zNear - zFar;
 	if (value == 0) return;

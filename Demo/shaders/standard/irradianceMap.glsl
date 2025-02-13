@@ -1,29 +1,10 @@
 #version 450 core
 
-//Vertex shader
-#ifdef VERTEX_SHADER
-layout (location = 0) in vec3 aPos;
-
-out vec3 TexCoords;
-
-uniform mat4 projection;
-uniform mat4 view;
-
-void main()
-{
-	TexCoords = aPos;
-	vec4 position = projection * view * vec4(aPos, 1.0);
-	gl_Position = position.xyzw;
-}
-#endif
-
-
-//Fragment shader
 #ifdef FRAGMENT_SHADER
-out vec4 FragColor;
-in vec3 TexCoords;
+layout(location = 0) in vec3 TexCoords;
+layout(location = 0) out vec4 FragColor;
 
-uniform samplerCube environmentMap;
+layout(set = 0, binding = 0) uniform samplerCube environmentMap;
 
 const float PI = 3.14159265359;
 
@@ -53,8 +34,6 @@ void main()
 		}
 	}
 	irradiance = PI * irradiance * (1.0 / float(nrSamples));
-
-	
 	FragColor = vec4(irradiance, 1.0);
 }
 #endif

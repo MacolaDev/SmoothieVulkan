@@ -1,12 +1,14 @@
 #version 450 
 
 #ifdef FRAGMENT_SHADER
+layout(location = 0) in vec2 TexCoords;
+layout(location = 0) out vec3 upsample;
 
-uniform sampler2D srcTexture;
-uniform float filterRadius;
-
-in vec2 TexCoords;
-out vec3 upsample;
+layout(set = 0, binding = 0) uniform sampler2D srcTexture;
+layout(push_constant, std430) uniform pc
+{
+	float filterRadius;
+};
 
 void main()
 {
@@ -40,23 +42,5 @@ void main()
 	upsample += (b+d+f+h)*2.0;
 	upsample += (a+c+g+i);
 	upsample *= 1.0 / 16.0;
-}
-
-
-#endif
-
-
-//Vertex shader
-#ifdef VERTEX_SHADER
-
-layout (location = 0) in vec2 aPos;
-layout (location = 1) in vec2 aTexCoords;
-
-out vec2 TexCoords;
-
-void main()
-{
-	gl_Position = vec4(aPos.x, aPos.y, 0.0, 1.0);
-	TexCoords = aTexCoords;
 }
 #endif

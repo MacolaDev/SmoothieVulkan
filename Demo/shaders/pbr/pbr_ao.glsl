@@ -1,14 +1,6 @@
 #version 450
 
-layout(set = 0, binding = 0) uniform UnifomBuffer
-{
-    mat4 projectionMatrix;
-    mat4 viewMatrix;
-    vec3 viewPos;
-    mat4 projectionViewMatrix;
-} Matrices;
 
-//Vertex shader
 #ifdef VERTEX_SHADER
 
 //Vertex shader input data
@@ -40,6 +32,14 @@ struct ModelMatrices
 	mat4 normalMatrix;
 };
 
+layout(set = 0, binding = 0) uniform UnifomBuffer
+{
+    mat4 projectionMatrix;
+    mat4 viewMatrix;
+    vec3 viewPos;
+    mat4 projectionViewMatrix;
+} Matrices;
+
 layout(set = 2, binding = 0, std430) readonly buffer ModelData
 {
 	ModelMatrices modelMatrices[];
@@ -49,6 +49,7 @@ layout(set = 2, binding = 0, std430) readonly buffer ModelData
 layout (location = 0) out vec2 TexCoord;
 layout (location = 1) out vec4 FragPos;
 layout (location = 2) out mat3 TBN;
+
 
 void main() 
 {   
@@ -62,7 +63,6 @@ void main()
 
     TBN = mat3(T, B, N); 
     gl_Position = Matrices.projectionViewMatrix * FragPos; 
-
 }
 #endif
 
@@ -73,6 +73,7 @@ void main()
 layout (location = 0) in vec2 TexCoord;
 layout (location = 1) in vec4 FragPos;
 layout (location = 2) in mat3 TBN;
+
 
 //Input textures
 layout(set = 2, binding = 1) uniform sampler2D diffuse;
@@ -100,7 +101,7 @@ void main()
 	vec3 normal = texture(normalMap, TexCoord).rgb;
 	normal = normalize(normal * 2.0 - 1.0);
 	gNormal = vec4(normalize(TBN * normal), 1);
-	
+
 	gAlbedoSpec.rgba = texture(diffuse, TexCoord).rgba;
 	
 }

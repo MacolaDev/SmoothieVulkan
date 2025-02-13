@@ -1,5 +1,36 @@
 #include "Camera.h"
 using namespace Smoothie;
+using namespace SmoothieMath;
+
+SmoothieMath::Vector3 Smoothie::Camera::getCameraPosition() const
+{
+	return cameraPos;
+}
+
+void Smoothie::Camera::setCameraPosition(const SmoothieMath::Vector3& position)
+{
+	cameraPos = position;
+}
+
+SmoothieMath::Vector3 Smoothie::Camera::getCameraFront() const
+{
+	return cameraFront;
+}
+
+void Smoothie::Camera::setCameraFront(const SmoothieMath::Vector3& front)
+{
+	cameraFront = front;
+}
+
+SmoothieMath::Vector3 Smoothie::Camera::getCameraUp() const
+{
+	return cameraUp;
+}
+
+void Smoothie::Camera::setCameraUp(const SmoothieMath::Vector3& up)
+{
+	cameraUp = up;
+}
 
 void Camera::updateCameraPosition(const Vector3& position)
 {
@@ -11,7 +42,7 @@ void Camera::updateCameraFront(const Vector3& front)
 	cameraFront = front;
 }
 
-void Camera::updateCameraMatrix()
+void Camera::updateCameraMatrices()
 {
 	cameraMatrix.lookAtMatrix(cameraPos, cameraPos + cameraFront, cameraUp);
 	projectionViewMatrix = cameraMatrix * projectionMatrix;
@@ -20,19 +51,6 @@ void Camera::updateCameraMatrix()
 void Smoothie::Camera::updateProjectionMatrix(float fovy, float aspec, float zNear, float zFar)
 {
 	projectionMatrix.perspectiveProjection(fovy, aspec, zNear, zFar);
-}
-
-float* Camera::matrixPtr()
-{
-	return cameraMatrix.dataPointer();
-}
-
-Camera::Camera() :cameraPos(0, 0, 0), cameraFront(1, 1, 1), cameraUp(0, 1, 0), zFar(1000.0f), zNear(0.1f), 
-targetExposure(0.5f), minExposure(0.0f), avrExposure(0.5f), maxExposure(1.0f)	
-{
-	cameraMatrix = Matrix4x4();
-	projectionMatrix = Matrix4x4();
-	projectionViewMatrix = Matrix4x4();
 }
 
 void Smoothie::Camera::setTargetExposure(float exposure)
@@ -50,9 +68,17 @@ float Smoothie::Camera::getFarPlane() const
 	return zFar;
 }
 
-Camera::Camera(const Vector3& cameraPos, const Vector3& cameraFront, const Vector3& cameraUp, float fovy, float aspec, float zNear, float zFar) :
-cameraPos(0, 0, 0), cameraFront(1, 1, 1), cameraUp(0, 1, 0), zFar(1000.0f), zNear(0.1f),
-targetExposure(0.5f), minExposure(0.0f), avrExposure(0.5f), maxExposure(1.0f)
+CameraUniformBufferData Smoothie::Camera::getUniformBufferData() const
+{
+	CameraUniformBufferData data;
+	data.projectionMatrix = projectionMatrix;
+	data.cameraMatrix = cameraMatrix;
+	data.cameraPos = cameraPos;
+	data.projectionViewMatrix = projectionViewMatrix;
+	return data;
+}
+
+Camera::Camera(const Vector3& cameraPos, const Vector3& cameraFront, const Vector3& cameraUp, float fovy, float aspec, float zNear, float zFar)
 {
 	this->cameraPos = cameraPos;
 	this->cameraFront = cameraFront;

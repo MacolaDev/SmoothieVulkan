@@ -5,31 +5,27 @@
 #include <vulkan/vulkan.h>
 #include <memory>
 #include <vector>
+#include "ResourceManager/ResourceHandler.h"
 
-class Mesh: private GeometryFile
+struct Mesh: private ResourceHandler<Mesh>
 {
-	std::shared_ptr<VertexBufferBase> vertexBufferAttributeType;
+	std::string filepath;
 	VkBuffer vertexBuffer = nullptr;
 	VmaAllocation vertexBufferAllocation = nullptr;
-	VkPipelineVertexInputStateCreateInfo pipelineVertexInputInfo;
-
-	std::vector<VkVertexInputAttributeDescription> vertexAttributes;
-	VkVertexInputBindingDescription bindigDescription;
-
+	std::shared_ptr<VertexBufferBase> vertexBufferAttributeType;
+	
 	VkBuffer indexBuffer = nullptr;
 	VmaAllocation indexBufferAllocation = nullptr;
-	VkPipelineInputAssemblyStateCreateInfo pipelineIndexInputInfo;
-	VkIndexType indexType = VK_INDEX_TYPE_UINT32;
 
-public:
+	VkIndexType indexType = VK_INDEX_TYPE_UINT32;
+	unsigned int numberOfIndices = 0;
+
 	Mesh(const std::string& filepath);
-	void bind(VkCommandBuffer commandBuffer) const;
+
+	void create(const std::string& filepath);
 	void destroy();
 
-	VkPipelineVertexInputStateCreateInfo getPipelineVertexInput() const;
-	VkPipelineInputAssemblyStateCreateInfo getPipelineIndexInput() const;
 	Mesh() = default;
-
-	unsigned int getNumberOfIndices() const;
 };
+
 

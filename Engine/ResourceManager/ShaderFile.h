@@ -1,16 +1,16 @@
 #pragma once
 #include <string>
+#include <vector>
 
 struct ShaderFile
 {
 	std::string file;
-
-	std::string vertexShader;
-	std::string fragmentShader;
-
-	bool hasGeometryShader;
-	std::string geometryShader;
-
+	
+	bool hasVertexShader = false;
+	std::vector<unsigned int> vertexShaderSPIRV;
+	
+	bool hasFragmentShader = false;
+	std::vector<unsigned int> fragmentShaderSPIRV;
 
 	ShaderFile(const std::string& filePath);
 	ShaderFile() = default;

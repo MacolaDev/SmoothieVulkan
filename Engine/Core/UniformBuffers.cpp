@@ -5,7 +5,6 @@
 
 static unsigned char paddedBuffer[] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, };
 
-UniformBuffers StandardUnifromBuffers::buffer1;
 UniformBuffers StandardUnifromBuffers::buffer2;
 
 void UniformBuffers::createBufferFromData()

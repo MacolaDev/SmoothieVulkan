@@ -22,6 +22,8 @@ namespace SmoothieMath {
 		Vector3 operator * (const Vector3& other) const;
 		Vector3 operator * (const float& scalar) const;
 		Vector3 operator / (float& scalar) const;
+		void operator += (const Vector3& other);
+		void operator -= (const Vector3& other);
 
 		//Returns A = A x other
 		Vector3 cross(const Vector3& other) const;

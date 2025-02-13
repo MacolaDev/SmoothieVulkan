@@ -83,6 +83,20 @@ Vector3 SmoothieMath::Vector3::operator/(float& scalar) const
 	return Vector3(x/scalar, y/scalar, z/scalar);
 }
 
+void SmoothieMath::Vector3::operator+=(const Vector3& other)
+{
+	x = x + other.x;
+	y = y + other.y;
+	z = z + other.z;
+}
+
+void SmoothieMath::Vector3::operator-=(const Vector3& other)
+{
+	x = x - other.x;
+	y = y - other.y;
+	z = z - other.z;
+}
+
 Vector3 SmoothieMath::Vector3::cross(const Vector3& other) const
 {	
 	float V1 = x; float W1 = other.x;

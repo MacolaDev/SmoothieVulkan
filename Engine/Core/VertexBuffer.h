@@ -13,7 +13,7 @@ class VertexBufferBase
 {
 public:
 	virtual std::vector<VkVertexInputAttributeDescription> getVertexAttributes() const;
-	virtual VkVertexInputBindingDescription getBindingDescription() const;
+	virtual void populateBindingDescription(VkVertexInputBindingDescription& bindingDescription) const;
 };
 
 struct xyznuvtb : public VertexBufferBase
@@ -24,7 +24,7 @@ struct xyznuvtb : public VertexBufferBase
 	unsigned int t, b;
 
 	std::vector<VkVertexInputAttributeDescription> getVertexAttributes() const override;
-	VkVertexInputBindingDescription getBindingDescription() const override;
+	void populateBindingDescription(VkVertexInputBindingDescription& bindingDescription) const override;
 };
 
 struct xyznuvtbc : public VertexBufferBase
@@ -35,5 +35,5 @@ struct xyznuvtbc : public VertexBufferBase
 	unsigned int t, b, color;
 
 	std::vector<VkVertexInputAttributeDescription> getVertexAttributes() const override;
-	VkVertexInputBindingDescription getBindingDescription() const override;
+	void populateBindingDescription(VkVertexInputBindingDescription& bindingDescription) const override;
 };

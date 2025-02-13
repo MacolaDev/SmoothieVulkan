@@ -14,10 +14,7 @@ add_library(SmoothieEngine STATIC ${SOURCES})
 target_include_directories(SmoothieEngine PRIVATE ${CMAKE_SOURCE_DIR}/include/VulkanMemoryAllocator/include)
 target_include_directories(SmoothieEngine PRIVATE ${CMAKE_SOURCE_DIR}/include/stb)
 target_include_directories(SmoothieEngine PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
-
-#target_include_directories(SmoothieEngine PRIVATE ${CMAKE_SOURCE_DIR}/include/glslang/glslang)
-include_directories(${Vulkan_INCLUDE_DIR})
-
+target_include_directories(SmoothieEngine PRIVATE ${Vulkan_INCLUDE_DIR})
 
 link_libraries()
 set_target_properties(

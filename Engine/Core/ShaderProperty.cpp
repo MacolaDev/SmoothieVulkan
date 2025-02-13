@@ -94,9 +94,6 @@ ShaderProperty::ShaderProperty(const Element& propertyElement, const std::vector
 	descriptorSetAllocInfo.descriptorSetCount = 1;
 	descriptorSetAllocInfo.pSetLayouts = &descriptorSetLayout;
 	vkAllocateDescriptorSets(SmoothieCore::getDevice(), &descriptorSetAllocInfo, &descriptorSet);
-
-	VkPhysicalDeviceProperties properties;
-	vkGetPhysicalDeviceProperties(SmoothieCore::getPhysicalDevice(), &properties);
 	
 	//Create matrices buffer
 	VkBufferCreateInfo modelMatricesBufferInfo{};
@@ -134,7 +131,7 @@ ShaderProperty::ShaderProperty(const Element& propertyElement, const std::vector
 	{
 		VkDescriptorImageInfo imgInfo{};
 		imgInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-		imgInfo.imageView = textures[i].imageView;
+		imgInfo.imageView = textures[i].image.imageView;
 		imgInfo.sampler = Samplers::Texture2DModelSampler;
 
 		VkWriteDescriptorSet descriptorWrite{};
@@ -161,7 +158,7 @@ void ShaderProperty::destroy()
 	matricesBufferAllocation = nullptr;
 	for (int i = 0; i < textures.size(); i++) 
 	{
-		textures[i].destroyImage();
+		textures[i].destroy();
 	}
 }
 
