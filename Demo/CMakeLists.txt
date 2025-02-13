@@ -7,7 +7,9 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 add_executable(Demo 
-"main.cpp" 
+"main.cpp"
+"Demo.h"
+"Demo.cpp"
 "${CMAKE_SOURCE_DIR}/include/GLFW/src/win32_platform.h"
 "${CMAKE_SOURCE_DIR}/include/GLFW/src/win32_joystick.h"
 "${CMAKE_SOURCE_DIR}/include/GLFW/src/win32_init.c"
