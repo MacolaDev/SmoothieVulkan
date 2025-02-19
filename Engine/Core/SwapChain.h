@@ -18,7 +18,7 @@ class SwapChain
 
 public:
 	static void create(unsigned int width, unsigned int height);
-	static void update();
+	static void update(unsigned int width, unsigned int height);
 	static void destroy();
 	static VkRenderPass getDefaultRenderPass();
 

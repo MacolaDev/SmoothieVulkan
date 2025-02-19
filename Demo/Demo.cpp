@@ -52,7 +52,7 @@ void FreeCamera::MouseCallback(GLFWwindow* window, double xposIn, double yposIn)
     front.z = sin(toRadians(yaw)) * cos(toRadians(pitch));
     front.normalizeVector();
     freeCamera.setCameraFront(front);
-    freeCamera.updateCameraMatrices();
+    freeCamera.updateCameraViewMatrices();
     SmoothieCore::updateCameraData(freeCamera);
 }
 
@@ -99,7 +99,7 @@ void FreeCamera::KeyboardCallback(GLFWwindow* window)
     }
 
     freeCamera.setCameraPosition(cameraPosition);
-    freeCamera.updateCameraMatrices();
+    freeCamera.updateCameraViewMatrices();
     SmoothieCore::updateCameraData(freeCamera);
 }
 
@@ -108,4 +108,12 @@ void FreeCamera::updateTime()
     currentFrame = (float)glfwGetTime();
     deltaTime = currentFrame - lastFrame;
     lastFrame = currentFrame;
+}
+
+void FreeCamera::resolutionUpdate(int width, int height)
+{
+    const float aspectRatio = static_cast<float>(width) / static_cast<float>(height);
+    freeCamera.setAspecRatio(aspectRatio);
+    freeCamera.updateProjectionMatrix();
+    SmoothieCore::updateCameraData(freeCamera);
 }

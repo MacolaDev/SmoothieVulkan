@@ -4,13 +4,14 @@
 #include "VMA.h"
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
-#include "Core/ThreadSafety.h"
+#include "Core/Multithreading.h"
 
 void Image::destroyImage()
 {
 	vmaDestroyImage(VMA::getAllocator(), image, allocation);
 	image = nullptr;
-	
+	allocation = nullptr;
+
 	vkDestroyImageView(SmoothieCore::getDevice(), imageView, nullptr);
 	imageView = nullptr;
 
@@ -55,59 +56,10 @@ void Samplers::create()
 void Samplers::destroy()
 {
 	vkDestroySampler(SmoothieCore::getDevice(), ClampToEdgeLINEAR, nullptr);
+	ClampToEdgeLINEAR = nullptr;
+
 	vkDestroySampler(SmoothieCore::getDevice(), Texture2DModelSampler, nullptr);
-}
-
-ThreadFrendlyCommandData beginSingleTimeCommands()
-{
-	ThreadFrendlyCommandData data;
-
-
-	VkCommandPoolCreateInfo poolInfo{};
-	poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
-	poolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
-	poolInfo.queueFamilyIndex = SmoothieCore::getQueueFamilyGraphicsIndex();
-
-	vkCreateCommandPool(SmoothieCore::getDevice(), &poolInfo, nullptr, &data.pool);
-
-	VkCommandBufferAllocateInfo allocInfo{};
-	allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-	allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-	allocInfo.commandPool = SmoothieCore::getCommandPool();
-	allocInfo.commandBufferCount = 1;
-
-	vkAllocateCommandBuffers(SmoothieCore::getDevice(), &allocInfo, &data.buffer);
-	VkCommandBufferBeginInfo beginInfo{};
-	beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-	beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-
-	vkBeginCommandBuffer(data.buffer, &beginInfo);
-	return data;
-
-}
-
-static std::mutex queueSubmitMutex;
-void endSingleTimeCommands(ThreadFrendlyCommandData& data)
-{
-	vkEndCommandBuffer(data.buffer);
-	VkSubmitInfo submitInfo{};
-	submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-
-	submitInfo.commandBufferCount = 1;
-	submitInfo.pCommandBuffers = &data.buffer;
-
-	std::lock_guard<std::mutex> guard(queueSubmitMutex);
-
-	vkQueueSubmit(SmoothieCore::getGraphicsQueue(), 1, &submitInfo, VK_NULL_HANDLE);
-	vkQueueWaitIdle(SmoothieCore::getGraphicsQueue());
-
-	vkDestroyCommandPool(SmoothieCore::getDevice(), data.pool, nullptr);
-	data.pool = nullptr;
-
-	//vkFreeCommandBuffers(SmoothieCore::getDevice(), data.pool, 1, &data.buffer);
-	data.buffer = nullptr;
-	
-
+	Texture2DModelSampler = nullptr;
 }
 
 void transitionImageLayout(VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout)
@@ -192,12 +144,14 @@ void copyBufferToImage(
 	endSingleTimeCommands(commandBuffer);
 }
 
+static std::mutex loadMutex;
 static void loadImageSTB(Image& image, const std::string& path) 
 {
 	int width, height;
 	stbi_set_flip_vertically_on_load(true);
 	unsigned char* data = stbi_load(path.c_str(), &width, &height, nullptr, STBI_rgb_alpha);
-	
+	std::lock_guard<std::mutex> lock(loadMutex);
+
 	VkImageCreateInfo createImage{};
 	createImage.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
 	createImage.imageType = VK_IMAGE_TYPE_2D;
@@ -213,7 +167,15 @@ static void loadImageSTB(Image& image, const std::string& path)
 	createImage.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 	createImage.format = VK_FORMAT_R8G8B8A8_UNORM;
 
-	vkCreateImage(SmoothieCore::getDevice(), &createImage, nullptr, &image.image);
+	//Creating image
+	VmaAllocationCreateInfo vmaImageAllocationInfo{};
+	vmaImageAllocationInfo.usage = VMA_MEMORY_USAGE_AUTO;
+	vmaCreateImage(VMA::getAllocator(), &createImage, &vmaImageAllocationInfo, &image.image, &image.allocation, nullptr);
+
+	
+	std::string imageAllocationName = "Texture: " + path;
+	vmaSetAllocationName(VMA::getAllocator(), image.allocation, imageAllocationName.c_str());
+
 
 	VkBuffer stagingBuffer = nullptr;
 	VmaAllocation stagingBufferAllocation = nullptr;
@@ -229,6 +191,11 @@ static void loadImageSTB(Image& image, const std::string& path)
 	stagingBufferCreateInfo.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
 
 	vmaCreateBuffer(VMA::getAllocator(), &stagingBufferCreateInfo, &stagingBufferAllocInfo, &stagingBuffer, &stagingBufferAllocation, nullptr);
+	
+
+	std::string stagingBufferAllocationName = "Texture stageing buffer: " + path;
+	vmaSetAllocationName(VMA::getAllocator(), stagingBufferAllocation, stagingBufferAllocationName.c_str());
+
 	vmaCopyMemoryToAllocation(VMA::getAllocator(), data, stagingBufferAllocation, 0, width * height * 4);
 
 	//Free data 
@@ -237,12 +204,6 @@ static void loadImageSTB(Image& image, const std::string& path)
 		stbi_image_free(data);
 	}
 
-	//Creating image
-	VmaAllocationCreateInfo vmaImageAllocationInfo{};
-	vmaImageAllocationInfo.usage = VMA_MEMORY_USAGE_AUTO;
-	VmaAllocationInfo imageAllocationInfoDebug{};
-
-	vmaCreateImage(VMA::getAllocator(), &createImage, &vmaImageAllocationInfo, &image.image, &image.allocation, &imageAllocationInfoDebug);
 	transitionImageLayout(image.image, createImage.format, createImage.initialLayout, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 	copyBufferToImage(stagingBuffer, image.image, static_cast<uint32_t>(width), static_cast<uint32_t>(height));
 	transitionImageLayout(image.image, createImage.format, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
@@ -261,8 +222,10 @@ static void loadImageSTB(Image& image, const std::string& path)
 	vkCreateImageView(SmoothieCore::getDevice(), &imageViewInfo, nullptr, &image.imageView);
 }
 
+static std::mutex mutex;
 void Texture2D::create(const std::string& file)
 {
+	std::lock_guard<std::mutex> lock(mutex);
 	filepath = file;
 	if (isAlreadyLoaded(file)) 
 	{

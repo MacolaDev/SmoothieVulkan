@@ -48,6 +48,7 @@ public:
 	static void create(unsigned int width, unsigned int height, const Image& HDRIImage);
 	static void bindAndDraw(VkCommandBuffer commandBuffer);
 	static void destroy();
+	static void update(unsigned int width, unsigned int height, const Image& HDRIImage);
 	static Image getBloomImage();
 };
 

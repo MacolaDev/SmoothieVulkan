@@ -8,6 +8,8 @@
 #include <iostream>
 #include <array>
 #include "Math/SmoothieMath.h"
+#include "Core/Multithreading.h"
+
 using namespace SmoothieMath;
 Image BRDF::image;
 
@@ -288,8 +290,12 @@ static void getHdriImage(const std::string& filepath, Image& image)
 	createImage.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 	createImage.format = VK_FORMAT_R32G32B32A32_SFLOAT;
 
+	//Creating image
+	VmaAllocationCreateInfo vmaImageAllocationInfo{};
+	vmaImageAllocationInfo.usage = VMA_MEMORY_USAGE_AUTO;
+	VmaAllocationInfo imageAllocationInfoDebug{};
 
-	vkCreateImage(SmoothieCore::getDevice(), &createImage, nullptr, &image.image);
+	vmaCreateImage(VMA::getAllocator(), &createImage, &vmaImageAllocationInfo, &image.image, &image.allocation, &imageAllocationInfoDebug);
 
 	VkBuffer stagingBuffer = nullptr;
 	VmaAllocation stagingBufferAllocation = nullptr;
@@ -312,13 +318,6 @@ static void getHdriImage(const std::string& filepath, Image& image)
 	{
 		stbi_image_free(data);
 	}
-
-	//Creating image
-	VmaAllocationCreateInfo vmaImageAllocationInfo{};
-	vmaImageAllocationInfo.usage = VMA_MEMORY_USAGE_AUTO;
-	VmaAllocationInfo imageAllocationInfoDebug{};
-
-	vmaCreateImage(VMA::getAllocator(), &createImage, &vmaImageAllocationInfo, &image.image, &image.allocation, &imageAllocationInfoDebug);
 
 	transitionImageLayout(image.image, createImage.format, createImage.initialLayout, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 
@@ -441,7 +440,9 @@ static void createDescriptorSetsLayouts(DescriptorSetHelper& helper, Image& imag
 static void destroyDescriptorSetsLayouts(DescriptorSetHelper& helper) 
 {
 	vkDestroyDescriptorSetLayout(SmoothieCore::getDevice(), helper.descriptorSetLayout, nullptr);
+	helper.descriptorSetLayout = nullptr;
 	vkDestroyDescriptorPool(SmoothieCore::getDevice(), helper.descriptorPool, nullptr);
+	helper.descriptorPool = nullptr;
 }
 
 struct CubemapPipelineHelper
@@ -1007,6 +1008,7 @@ static void destroyFrambufferChain(std::array<VkFramebuffer, 5>& framebufferMipC
 	for (int mip = 0; mip < framebufferMipChain.size(); mip++)
 	{
 		vkDestroyFramebuffer(SmoothieCore::getDevice(), framebufferMipChain[mip], nullptr);
+		framebufferMipChain[mip] = nullptr;
 	}
 }
 
@@ -1369,6 +1371,7 @@ void PBRCubemaps::create(const std::string& file)
 	destroyDescriptorSetsLayouts(descriptors);
 	destroyFrambufferChain(framebufferMipChain);
 	vkDestroyRenderPass(SmoothieCore::getDevice(), renderPass, nullptr);
+	renderPass = nullptr;
 	destroyPrefilteredTargetMipChain(tempImageMipChain);
 }
 

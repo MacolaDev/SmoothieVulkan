@@ -95,15 +95,17 @@ void UniformBuffers::destroy()
 {
 	vkDestroyDescriptorSetLayout(SmoothieCore::getDevice(), descriptorSetLayout, nullptr);
 	descriptorSetLayout = nullptr;
+
 	vkDestroyDescriptorPool(SmoothieCore::getDevice(), descriptorPool, nullptr);
 	descriptorPool = nullptr;
-	
+	descriptorSet = nullptr;
+
 	vmaDestroyBuffer(VMA::getAllocator(), uniformBuffer, uniformBufferAllocation);
 	uniformBuffer = nullptr;
 	uniformBufferAllocation = nullptr;
 }
 
-void UniformBuffers::addDataInt(int* data)
+void UniformBuffers::addDataInt(unsigned int* data)
 {
 	elementDataPointers.push_back(data);
 	bufferElementSizes.push_back(sizeof(int));

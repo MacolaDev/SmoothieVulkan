@@ -42,7 +42,7 @@ void Camera::updateCameraFront(const Vector3& front)
 	cameraFront = front;
 }
 
-void Camera::updateCameraMatrices()
+void Camera::updateCameraViewMatrices()
 {
 	cameraMatrix.lookAtMatrix(cameraPos, cameraPos + cameraFront, cameraUp);
 	projectionViewMatrix = cameraMatrix * projectionMatrix;
@@ -53,9 +53,19 @@ void Smoothie::Camera::updateProjectionMatrix(float fovy, float aspec, float zNe
 	projectionMatrix.perspectiveProjection(fovy, aspec, zNear, zFar);
 }
 
+void Smoothie::Camera::updateProjectionMatrix()
+{
+	projectionMatrix.perspectiveProjection(fovy, aspec, zNear, zFar);
+}
+
 void Smoothie::Camera::setTargetExposure(float exposure)
 {
 	this->targetExposure = exposure;
+}
+
+void Smoothie::Camera::setAspecRatio(float ratio)
+{
+	aspec = ratio;
 }
 
 float Smoothie::Camera::getTargetExposure()

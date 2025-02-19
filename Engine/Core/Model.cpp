@@ -11,6 +11,8 @@
 
 #include <limits>
 #include <random>
+#include <mutex>
+
 using namespace Smoothie;
 using namespace SmoothieMath;
 
@@ -177,6 +179,7 @@ Model::Model(const std::string& file, SmoothieMath::Matrix4x4 modelMatrix)
 	vkCreateGraphicsPipelines(SmoothieCore::getDevice(), VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &modelPipeline);
 }
 
+static std::mutex addToRenderingMutex;
 void Smoothie::Model::addToRendering() const
 {
 	if (ModelID == 0) return;
@@ -185,6 +188,7 @@ void Smoothie::Model::addToRendering() const
 	auto model = Smoothie::LoadedModels::getModel(ModelID);
 	if (model == nullptr) return;
 	
+	std::lock_guard<std::mutex> lock(addToRenderingMutex);
 	if (modelRenderPass == ShaderModelRenderPass::gBuffer) 
 	{
 		DeferredPipeline::PBRModels.push_back(model);
@@ -195,6 +199,7 @@ void Smoothie::Model::addToRendering() const
 	}
 }
 
+static std::mutex removeFromRenderingMutex;
 void Smoothie::Model::removeFromRendering() const
 {
 	if (ModelID == 0) return;
@@ -202,6 +207,8 @@ void Smoothie::Model::removeFromRendering() const
 	auto model = Smoothie::LoadedModels::getModel(ModelID);
 	if (model == nullptr) return;
 
+	std::lock_guard<std::mutex> lock(removeFromRenderingMutex);
+	
 	if (modelRenderPass == ShaderModelRenderPass::gBuffer)
 	{
 		DeferredPipeline::PBRModels.remove(model);
@@ -220,22 +227,8 @@ void Smoothie::Model::bindAndDraw(VkCommandBuffer commandBuffer) const
 	vkCmdBindVertexBuffers(commandBuffer, 0, 1, &mesh.vertexBuffer, offsets);
 	vkCmdBindIndexBuffer(commandBuffer, mesh.indexBuffer, 0, mesh.indexType);
 	
-	//Dynamic properties of a pipeline
-	VkViewport viewport{};
-	viewport.x = 0.0f;
-	viewport.y = 0.0f;
-
-	//TODO: UPDATE THIS
-	viewport.width = static_cast<float>(1280);
-	viewport.height = static_cast<float>(720);
-	viewport.minDepth = 0.0f;
-	viewport.maxDepth = 1.0f;
-	vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
-	
-	VkRect2D scissor{};
-	scissor.offset = { 0, 0 };
-	scissor.extent = { 1280, 720 };
-	vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
+	SmoothieCore::setViewport(commandBuffer);
+	SmoothieCore::setScissor(commandBuffer);
 
 	VkDescriptorSet descriptorSets[] = 
 	{
@@ -261,7 +254,6 @@ unsigned int Smoothie::Model::getModelID() const
 void Smoothie::Model::destroy()
 {
 	removeFromRendering();
-
 	vkDestroyPipeline(SmoothieCore::getDevice(), modelPipeline, nullptr);
 	modelPipeline = nullptr;
 	

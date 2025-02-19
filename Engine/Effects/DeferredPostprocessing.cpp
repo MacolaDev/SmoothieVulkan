@@ -148,8 +148,10 @@ void DeferredPostprocessing::destroy()
 	descriptorPool = nullptr;
 }
 
-void DeferredPostprocessing::update()
+void DeferredPostprocessing::update(const Image& HDRImage, const Image& bloomImage)
 {
+	destroy();
+	create(HDRImage, bloomImage);
 }
 
 void DeferredPostprocessing::draw(VkCommandBuffer commandBuffer, int index)
@@ -164,30 +166,18 @@ void DeferredPostprocessing::draw(VkCommandBuffer commandBuffer, int index)
 	clearColor.color = { 0.0f, 0.0f, 0.0f, 1.0f };
 	beginInfo.clearValueCount = 1;
 	beginInfo.pClearValues = &clearColor;
-	beginInfo.renderArea.extent = { 1280, 720 };
+	beginInfo.renderArea.extent = SwapChain::getSwapChainExtent();
 	beginInfo.renderArea.offset = { 0, 0 };
 
-	//Viewport data
-	VkViewport viewport{};
-	viewport.x = 0.0f;
-	viewport.y = 0.0f;
-	viewport.width = static_cast<float>(1280);
-	viewport.height = static_cast<float>(720);
-	viewport.minDepth = 0.0f;
-	viewport.maxDepth = 1.0f;
-	vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
+	SmoothieCore::setViewport(commandBuffer);
 
 	vkCmdBeginRenderPass(commandBuffer, &beginInfo, VK_SUBPASS_CONTENTS_INLINE);
 
 	vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
 	
-	//TODO: Update this
-	//Dynamic properties of a pipeline
-	vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
-	VkRect2D scissor{};
-	scissor.offset = { 0, 0 };
-	scissor.extent = { 1280, 720 };
-	vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
+
+	SmoothieCore::setViewport(commandBuffer);
+	SmoothieCore::setScissor(commandBuffer);
 
 	VkDescriptorSet descriptorSets[] =
 	{

@@ -9,11 +9,6 @@
 
 class SmoothieCore
 {
-    friend class SmoothieVulkanCore;
-
-    static bool isEngineReady;
-    static Scene* scene;
-
 public:
     static void initEngine(unsigned int GPUIndex, VkSurfaceKHR surface, unsigned int windowWidth, unsigned int windowHeight);
     static void finalize();
@@ -28,6 +23,26 @@ public:
 
     //Updates render engine with new camera data.
     static void updateCameraData(const Smoothie::Camera& camera);
+
+    static void updateRenderingResolution(unsigned int windowWidth, unsigned int windowHeight);
+
+
+
+
+
+
+
+
+
+
+
+
+
+private:
+    friend class SmoothieVulkanCore;
+
+    static bool isEngineReady;
+    static Scene* scene;
 
 //Conteains Vulkan-related stuff for engine
 #ifdef _SMOOTHIE_ENGINE
@@ -68,6 +83,10 @@ public:
     static VkQueue getPresentQueue();
     static VkCommandPool getCommandPool();
     
-    static int SCR_WIDTH, SCR_HEIGHT;
+    static void setViewport(VkCommandBuffer commandBuffer);
+    static void setScissor(VkCommandBuffer commandBuffer);
+
+    static unsigned int SCR_WIDTH, SCR_HEIGHT;
+    static void destroyEngine();
 #endif
 };

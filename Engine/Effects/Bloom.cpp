@@ -391,19 +391,12 @@ static inline void beginPass(VkCommandBuffer commandBuffer, unsigned int width, 
 
 void Bloom::bindAndDraw(VkCommandBuffer commandBuffer)
 {
-	//Viewport data
-	VkViewport viewport{};
-	viewport.x = 0.0f;
-	viewport.y = 0.0f;
-	viewport.width = static_cast<float>(1280);
-	viewport.height = static_cast<float>(720);
-	viewport.minDepth = 0.0f;
-	viewport.maxDepth = 1.0f;
-	beginPass(commandBuffer, 1280, 720, mipChainImages[0].framebuffer);
+	SmoothieCore::setViewport(commandBuffer);
+	beginPass(commandBuffer, SmoothieCore::SCR_WIDTH, SmoothieCore::SCR_HEIGHT, mipChainImages[0].framebuffer);
 	
 	//Higligh image
 	vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, higlightPipeline);
-	vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
+	SmoothieCore::setViewport(commandBuffer);
 
 	VkRect2D scissor{};
 	scissor.offset = { 0, 0 };
@@ -509,14 +502,12 @@ void Bloom::bindAndDraw(VkCommandBuffer commandBuffer)
 		translateToShaderReadOnly(commandBuffer, mipChainImages[i - 1].mipImage);
 	}
 
-	//translateToAttachment(commandBuffer, mipChainImages[0].mipImage);
-
 }
 
 void Bloom::destroy()
 {
 
-	for (size_t mip = mipChainImages.size() - 1; mip > 0; mip--)
+	for (size_t mip = 0; mip < mipChainImages.size(); mip++)
 	{
 		destroyPipeline(mipChainImages[mip].upPipeline,
 			mipChainImages[mip].upPipelineLayout);
@@ -524,7 +515,7 @@ void Bloom::destroy()
 			mipChainImages[mip].upDescriptorSet);
 	}
 
-	for (size_t mip = 1; mip < mipChainImages.size(); mip++)
+	for (size_t mip = 0; mip < mipChainImages.size(); mip++)
 	{
 		destroyPipeline(mipChainImages[mip].dwPipeline, mipChainImages[mip].dwPipelineLayout);
 		destroyDescriptors(mipChainImages[mip].dwDescriptorPool, mipChainImages[mip].dwDescriptorSetLayout, 
@@ -540,6 +531,12 @@ void Bloom::destroy()
 		mipChainImages[mip].framebuffer = nullptr;
 	}
 
+}
+
+void Bloom::update(unsigned int width, unsigned int height, const Image& HDRIImage)
+{
+	destroy();
+	create(width, height, HDRIImage);
 }
 
 Image Bloom::getBloomImage()

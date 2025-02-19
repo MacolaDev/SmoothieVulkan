@@ -335,7 +335,12 @@ void GraphicsPass1::destroy()
 
 void GraphicsPass1::update(unsigned int width, unsigned int height)
 {
-
+	_gBufferPass.update(width, height);
+	_HDRPass.update(width, height, &_gBufferPass.gDepth);
+	pbr.update(width, height, _gBufferPass, _HDRPass.HDRImage.imageView);
+	Bloom::update(width, height, _HDRPass.HDRImage);
+	const auto bloomImage = Bloom::getBloomImage();
+	DeferredPostprocessing::update(_HDRPass.HDRImage, bloomImage);
 }
 
 void GraphicsPass1::bind(VkCommandBuffer commandBuffer) const
@@ -392,15 +397,15 @@ void HDR::create(unsigned int width, unsigned int height, Image* gBufferDepthIma
 
 void HDR::destroy()
 {
-
 	vkDestroyFramebuffer(SmoothieCore::getDevice(), framebuffer, nullptr);
 	framebuffer = nullptr;
 	HDRImage.destroyImage();
 }
 
-void HDR::update(unsigned int width, unsigned int height)
+void HDR::update(unsigned int width, unsigned int height, Image* gBufferDepthImage)
 {
-
+	destroy();
+	create(width, height, gBufferDepthImage);
 }
 
 void HDR::beginPass(VkCommandBuffer commandBuffer) const

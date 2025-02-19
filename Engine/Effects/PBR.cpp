@@ -172,8 +172,10 @@ void PBR::destroy()
 	descriptorPool = nullptr;
 }
 
-void PBR::update(unsigned int width, unsigned int height)
+void PBR::update(unsigned int width, unsigned int height, const gBuffer& gBuffrerData, const VkImageView& HDRRenderTarget)
 {
+	destroy();
+	create(width, height, gBuffrerData, HDRRenderTarget);
 }
 
 void PBR::draw(VkCommandBuffer commandBuffer) const
@@ -192,29 +194,18 @@ void PBR::draw(VkCommandBuffer commandBuffer) const
 	beginInfo.clearValueCount = 1;
 	beginInfo.pClearValues = clearValues;
 
-	beginInfo.renderArea.extent = { 1280, 720 };
+	beginInfo.renderArea.extent.height = SmoothieCore::SCR_HEIGHT;
+	beginInfo.renderArea.extent.width = SmoothieCore::SCR_WIDTH;
 	beginInfo.renderArea.offset = { 0, 0 };
 
 	vkCmdBeginRenderPass(commandBuffer, &beginInfo, VK_SUBPASS_CONTENTS_INLINE);
 	
-	//Viewport data
-	VkViewport viewport{};
-	viewport.x = 0.0f;
-	viewport.y = 0.0f;
-	viewport.width = static_cast<float>(1280);
-	viewport.height = static_cast<float>(720);
-	viewport.minDepth = 0.0f;
-	viewport.maxDepth = 1.0f;
-	
-	vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
+	SmoothieCore::setViewport(commandBuffer);
 
 	vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
-	vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
+	SmoothieCore::setViewport(commandBuffer);
 	
-	VkRect2D scissor{};
-	scissor.offset = { 0, 0 };
-	scissor.extent = SwapChain::getSwapChainExtent();
-	vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
+	SmoothieCore::setScissor(commandBuffer);
 
 	VkDescriptorSet descriptorSets[] =
 	{

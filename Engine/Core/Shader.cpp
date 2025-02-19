@@ -4,7 +4,7 @@
 #define _SMOOTHIE_ENGINE
 #include "SmoothieCore.h"
 #include <filesystem>
-
+#include <mutex>
 Shader::Shader(const std::string& file) :ShaderFile(file)
 {
 	//general module create info
@@ -175,9 +175,11 @@ void PostProcessingShaders::destroy()
 	destroyShaderModule(basicVertexShader);
 }
 
+static std::mutex mutex;
 void ModelShader::create(const std::string& shaderFile)
 {
 	filepath = shaderFile;
+	std::lock_guard<std::mutex> lock(mutex);
 	if (isAlreadyLoaded(shaderFile))
 	{
 		auto data = getResourse(shaderFile);

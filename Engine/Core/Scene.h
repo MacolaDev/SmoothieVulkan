@@ -11,6 +11,7 @@ public:
 	Scene() = default;
 
 	void destroy();
+	void update(unsigned int width, unsigned int height);
 private:
 	std::vector<std::future<void>> modelFutures;
 };

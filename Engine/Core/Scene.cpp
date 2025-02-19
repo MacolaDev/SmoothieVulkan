@@ -10,6 +10,7 @@
 #include "Core/LoadedModels.h"
 #include "Math/SmoothieMath.h"
 #include "Effects/Skybox.h"
+#include "Core/Multithreading.h"
 
 static std::mutex ModelMutex;
 static void loadModelsAsync(Element modelElement)
@@ -43,24 +44,45 @@ Scene::Scene(const std::string& file)
 
 	auto xmlData = ParseXML(file);
 	PBRCubemaps::create(xmlData.getElement("skybox").textContent);
-	DeferredPipeline::create(1280, 720);
+	DeferredPipeline::create(SmoothieCore::SCR_WIDTH, SmoothieCore::SCR_HEIGHT);
 	std::vector<Element> models = xmlData.getElement("models").children;
 	
 	for (size_t i = 0; i < models.size(); i++)
 	{
-		loadModelsAsync(models[i]);
-		//modelFutures.push_back(std::async(std::launch::async, loadModelsAsync, models[i]));
+		modelFutures.push_back(std::async(std::launch::async, loadModelsAsync, models[i]));
 	}
 	
 	Skybox::create(PBRCubemaps::HDRCubemap);
 }
 
+static void waitForAllFuturesToFinish(const std::vector<std::future<void>>& futures) 
+{
+	for (const auto& future : futures)
+	{
+		while (future.wait_for(std::chrono::seconds(0)) != std::future_status::ready)
+		{
+			MultithreadSubmissions::submitGraphicsQueue();
+		}
+	}
+}
+
 void Scene::destroy()
 {
+	vkQueueWaitIdle(SmoothieCore::getGraphicsQueue());
+	
+	waitForAllFuturesToFinish(modelFutures);
+	modelFutures.clear();
+
 	vkQueueWaitIdle(SmoothieCore::getGraphicsQueue());
 
 	Skybox::destroy();
 	Smoothie::LoadedModels::destroyAllModels();
 	PBRCubemaps::destroy();
 	DeferredPipeline::destroy();
+}
+
+void Scene::update(unsigned int width, unsigned int height)
+{
+	vkDeviceWaitIdle(SmoothieCore::getDevice());
+	DeferredPipeline::update(width, height);
 }

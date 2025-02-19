@@ -20,6 +20,12 @@ static void mouseCallback(GLFWwindow* window, double xposIn, double yposIn)
 	FreeCamera::MouseCallback(window, xposIn, yposIn);
 }
 
+static void resizeCallback(GLFWwindow* window, int width, int height) 
+{
+	FreeCamera::resolutionUpdate(width, height);
+	SmoothieCore::updateRenderingResolution(width, height);
+}
+
 int main()
 {
 
@@ -30,12 +36,12 @@ int main()
 	}
 
 	glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-	glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
-	window = glfwCreateWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "Vulkan", nullptr, nullptr);
+	glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
+	window = glfwCreateWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "SmoothieVulkan", nullptr, nullptr);
 	
 	//Callback functions
 	glfwSetCursorPosCallback(window, mouseCallback);
-
+	glfwSetFramebufferSizeCallback(window, resizeCallback);
 
 	//Disable cursor
 	glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
@@ -49,7 +55,7 @@ int main()
 	extensions.push_back(VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME);
 	
 	//vulkan instance
-	auto instance = SmoothieCore::createVulkanInstance(extensions.data(), extensions.size(), true);
+	auto instance = SmoothieCore::createVulkanInstance(extensions.data(), extensions.size(), false);
 	VkSurfaceKHR vksurface = nullptr;
 	glfwCreateWindowSurface(instance, window, nullptr, &vksurface);
 	

@@ -2,6 +2,7 @@
 #include <unordered_map>
 #include "Core/Model.h"
 #include <vector>
+#include <mutex>
 
 class Scene;
 namespace Smoothie 
@@ -19,14 +20,13 @@ namespace Smoothie
 		//If model with same ID exists, it won't do anything.
 		static void addModel(Smoothie::Model model);
 
-		//Removes model with this ID. It also calls destroy() method on that model. 
+		//Removes model with this ID.
 		//If model with that ID does not exist, it does nothing.
 		static void removeModel(unsigned int ModelID);
 
 	private:
 		static void destroyAllModels();
 		static std::unordered_map<unsigned int, Smoothie::Model> loadedModels; 
-
 		friend class Scene;
 	};
 

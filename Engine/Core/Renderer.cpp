@@ -4,8 +4,7 @@
 #include <iostream>
 #include "DeferredPipeline.h"
 #include "SwapChain.h"
-
-#include "Core/ThreadSafety.h"
+#include "Core/Multithreading.h"
 
 VkCommandBuffer Renderer::renderCommandBuffer = nullptr;
 
@@ -88,9 +87,21 @@ void Renderer::draw()
 
 	
 	vkQueuePresentKHR(SmoothieCore::getPresentQueue(), &presentInfo);
+
+	MultithreadSubmissions::submitGraphicsQueue();
 }
 
 void Renderer::destroyRenderer()
 {
 	vkQueueWaitIdle(SmoothieCore::getGraphicsQueue());
+	
+	vkDestroyFence(SmoothieCore::getDevice(), fence, nullptr);
+	fence = nullptr;
+
+	vkDestroySemaphore(SmoothieCore::getDevice(), renderFinishedSemaphore, nullptr);
+	renderFinishedSemaphore = nullptr;
+
+	vkDestroySemaphore(SmoothieCore::getDevice(), imageAvailableSemaphore, nullptr);
+	imageAvailableSemaphore = nullptr;
+	
 }

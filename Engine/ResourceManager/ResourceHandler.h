@@ -23,13 +23,17 @@ public:
 
 private:
 	static std::unordered_map<std::string, SafeResourceCount<Resource>> resources;
+	static std::mutex mapMutex;
 };
 
+
 template<class Resource>std::unordered_map<std::string, SafeResourceCount<Resource>>ResourceHandler<Resource>::resources;
+template<class Resource>std::mutex ResourceHandler<Resource>::mapMutex;
 
 template<class Resource>
 inline Resource* ResourceHandler<Resource>::getResourse(const std::string& filepath) const
 {
+	std::lock_guard<std::mutex> lock(mapMutex);
 	if (auto search = resources.find(filepath); search != resources.end())
 	{
 		return &resources[filepath].resource;
@@ -37,12 +41,11 @@ inline Resource* ResourceHandler<Resource>::getResourse(const std::string& filep
 	return nullptr;
 }
 
-static std::mutex writingMutex;
 template<class Resource>
 inline void ResourceHandler<Resource>::setResource(const std::string& filepath, Resource resouce)
 {
 	
-	std::lock_guard<std::mutex> lock(writingMutex);
+	std::lock_guard<std::mutex> lock(mapMutex);
 
 	if (auto search = resources.find(filepath); search != resources.end())
 	{
@@ -70,6 +73,7 @@ inline void ResourceHandler<Resource>::setResource(const std::string& filepath, 
 template<class Resource>
 inline bool ResourceHandler<Resource>::isAlreadyLoaded(const std::string& resourceName) const
 {
+	std::lock_guard<std::mutex> lock(mapMutex);
 	if (auto search = resources.find(resourceName); search != resources.end())
 	{
 		return true;
@@ -80,7 +84,7 @@ inline bool ResourceHandler<Resource>::isAlreadyLoaded(const std::string& resour
 template<class Resource>
 inline unsigned int ResourceHandler<Resource>::getReferenceCout(const std::string& filepath) const
 {
-
+	std::lock_guard<std::mutex> lock(mapMutex);
 	if (auto search = resources.find(filepath); search != resources.end())
 	{
 		return resources.at(filepath).ResourceCout;
@@ -91,7 +95,7 @@ inline unsigned int ResourceHandler<Resource>::getReferenceCout(const std::strin
 template<class Resource>
 inline void ResourceHandler<Resource>::decreaseReferenceCount(const std::string& filepath)
 {
-
+	std::lock_guard<std::mutex> lock(mapMutex);
 	if (auto search = resources.find(filepath); search != resources.end())
 	{
 		resources.at(filepath).ResourceCout -= 1;
@@ -102,6 +106,7 @@ inline void ResourceHandler<Resource>::decreaseReferenceCount(const std::string&
 template<class Resource>
 inline void ResourceHandler<Resource>::increaseReferenceCount(const std::string& filepath)
 {
+	std::lock_guard<std::mutex> lock(mapMutex);
 	if (auto search = resources.find(filepath); search != resources.end())
 	{
 		resources.at(filepath).ResourceCout += 1;
@@ -111,6 +116,7 @@ inline void ResourceHandler<Resource>::increaseReferenceCount(const std::string&
 template<class Resource>
 inline void ResourceHandler<Resource>::removeResource(const std::string& filepath)
 {
+	std::lock_guard<std::mutex> lock(mapMutex);
 	if (auto search = resources.find(filepath); search != resources.end())
 	{
 

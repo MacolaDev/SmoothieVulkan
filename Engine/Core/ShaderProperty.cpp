@@ -160,6 +160,13 @@ void ShaderProperty::destroy()
 	{
 		textures[i].destroy();
 	}
+
+	vkDestroyDescriptorSetLayout(SmoothieCore::getDevice(), descriptorSetLayout, nullptr);
+	descriptorSetLayout = nullptr;
+	
+	vkDestroyDescriptorPool(SmoothieCore::getDevice(), descriptorPool, nullptr);
+	descriptorPool = nullptr;
+
 }
 
 VkDescriptorSet ShaderProperty::getDescriptorSet() const

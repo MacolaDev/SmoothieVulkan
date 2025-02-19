@@ -26,7 +26,7 @@ public:
 	void createBufferFromData();
 	void destroy();
 
-	void addDataInt(int* data);
+	void addDataInt(unsigned int* data);
 	void addDataFloat(float* data);
 	void addDataVector3(SmoothieMath::Vector3* data);
 	void addDataMatrix4x4(SmoothieMath::Matrix4x4* data);

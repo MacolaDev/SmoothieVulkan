@@ -1,7 +1,17 @@
-import bpy #type: ignore
+import os
+import sys
 
-import scene
-import model
+
+import bpy #type: ignore
+try:
+    import scene
+    import model
+except Exception:
+    path = ""
+    sys.path.append(path)
+    
+    import scene
+    import model
 
 #This is here so that I dont have to close blender every time I make a change in other files.
 #It shouldnt be here in the final verion of script. There will be more of theese in other scripts too.
@@ -57,7 +67,7 @@ class SmoothieExporter(bpy.types.Panel):
 
 #Layout class for exporting scenes
 class SmoothieSceneExporter(bpy.types.Panel):    
-    bl_label = "Scene Export (In development!)"
+    bl_label = "Scene Export (Depricated!)"
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
     bl_category = "Smoothie Export"

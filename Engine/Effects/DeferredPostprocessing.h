@@ -15,7 +15,7 @@ class DeferredPostprocessing
 public:
 	static void create(const Image& HDRImage, const Image& bloomImage);
 	static void destroy();
-	static void update();
+	static void update(const Image& HDRImage, const Image& bloomImage);
 	static void draw(VkCommandBuffer commandBuffer, int index);
 };
 

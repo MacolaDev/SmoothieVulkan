@@ -7,26 +7,19 @@
 #include "ResourceManager/ResourceHandler.h"
 
 
-struct ThreadFrendlyCommandData 
-{
-	VkCommandBuffer buffer = nullptr;
-	VkCommandPool pool = nullptr;
-};
 
 void copyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height);
 void transitionImageLayout(VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout);
 
-void endSingleTimeCommands(ThreadFrendlyCommandData& commandBuffer);
-ThreadFrendlyCommandData beginSingleTimeCommands();
-
 //Used for everything that needs textures
 struct Image
 {
+	VkImage image = nullptr;
+	VkImageView imageView = nullptr;
+
 	VkBuffer imageBuffer = nullptr;
 	VmaAllocationInfo allocationInfo{};
 	VmaAllocation allocation = nullptr;
-	VkImage image = nullptr;
-	VkImageView imageView = nullptr;
 
 	void destroyImage();
 };

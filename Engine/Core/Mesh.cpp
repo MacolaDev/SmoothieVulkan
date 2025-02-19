@@ -4,10 +4,13 @@
 #define _SMOOTHIE_ENGINE
 #include "SmoothieCore.h"
 #include <iostream>
+#include <mutex>
 
+static std::mutex mutex;
 Mesh::Mesh(const std::string& file)
 {
 	filepath = file;
+	std::lock_guard<std::mutex> lock(mutex);
 	if (isAlreadyLoaded(file))
 	{
 
@@ -61,8 +64,9 @@ void Mesh::create(const std::string& filepath)
 
 	//Creating and copying data from file to buffer
 	vmaCreateBuffer(VMA::getAllocator(), &vertexBufferCreateInfo, &allocInfo, &vertexBuffer, &vertexBufferAllocation, nullptr);
+	std::string vertexBufferAllocationName = "Vertex buffer: " + filepath;
+	vmaSetAllocationName(VMA::getAllocator(), vertexBufferAllocation, vertexBufferAllocationName.c_str());
 	vmaCopyMemoryToAllocation(VMA::getAllocator(), data.vertexData.data(), vertexBufferAllocation, 0, data.vertexData.size());
-
 
 
 	VkBufferCreateInfo indexBufferCreateInfo{};
@@ -70,6 +74,10 @@ void Mesh::create(const std::string& filepath)
 	indexBufferCreateInfo.size = data.indexData.size();
 	indexBufferCreateInfo.usage = VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
 	vmaCreateBuffer(VMA::getAllocator(), &indexBufferCreateInfo, &allocInfo, &indexBuffer, &indexBufferAllocation, nullptr);
+
+	std::string indexBufferAllocationName = "Index buffer: " + filepath;
+	vmaSetAllocationName(VMA::getAllocator(), indexBufferAllocation, indexBufferAllocationName.c_str());
+
 	vmaCopyMemoryToAllocation(VMA::getAllocator(), data.indexData.data(), indexBufferAllocation, 0, data.indexData.size());
 	numberOfIndices = data.numberOfIndices;
 }
@@ -80,13 +88,15 @@ void Mesh::destroy()
 	if (getReferenceCout(filepath) == 0)
 	{
 		vmaDestroyBuffer(VMA::getAllocator(), indexBuffer, indexBufferAllocation);
-		indexBuffer = nullptr;
-		indexBufferAllocation = nullptr;
 
 		vmaDestroyBuffer(VMA::getAllocator(), vertexBuffer, vertexBufferAllocation);
-		vertexBuffer = nullptr;
-		vertexBufferAllocation = nullptr;
 		removeResource(filepath);
 	}
+
+	indexBuffer = nullptr;
+	indexBufferAllocation = nullptr;
+	
+	vertexBuffer = nullptr;
+	vertexBufferAllocation = nullptr;
 }
 

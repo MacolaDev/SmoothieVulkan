@@ -8,5 +8,6 @@ struct FreeCamera
 	static void MouseCallback(GLFWwindow* window, double xposIn, double yposIn);
 	static void KeyboardCallback(GLFWwindow* window);
 	static void updateTime();
+	static void resolutionUpdate(int width, int height);
 };
 

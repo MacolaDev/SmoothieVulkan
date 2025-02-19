@@ -28,7 +28,13 @@ void VMA::createAllocator()
 
 void VMA::freeAllocator()
 {
+	//char* stats = NULL;
+	//vmaBuildStatsString(allocator, &stats, VK_TRUE);
+	//printf("VMA Stats: %s\n", stats);
+	//vmaFreeStatsString(allocator, stats);
+
 	vmaDestroyAllocator(allocator);
+	allocator = nullptr;
 }
 
 VmaAllocator VMA::getAllocator()

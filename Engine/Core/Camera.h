@@ -35,11 +35,15 @@ namespace Smoothie
 
 		void updateCameraFront(const SmoothieMath::Vector3& front);
 
-		void updateCameraMatrices();
+		void updateCameraViewMatrices();
 
 		void updateProjectionMatrix(float fovy, float aspec, float zNear, float zFar);
+		
+		void updateProjectionMatrix();
 
 		void setTargetExposure(float exposure);
+
+		void setAspecRatio(float ratio);
 
 		float getTargetExposure();
 

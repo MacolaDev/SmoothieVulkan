@@ -16,7 +16,7 @@ class PBR
 public:
 	void create(unsigned int width, unsigned int height, const gBuffer& gBuffrerData, const VkImageView& HDRRenderTarget);
 	void destroy();
-	void update(unsigned int width, unsigned int height);
+	void update(unsigned int width, unsigned int height, const gBuffer& gBuffrerData, const VkImageView& HDRRenderTarget);
 
 	void draw(VkCommandBuffer commandBuffer) const;
 

@@ -35,7 +35,7 @@ struct HDR
 
 	void create(unsigned int width, unsigned int height, Image* gBufferDepthImage);
 	void destroy();
-	void update(unsigned int width, unsigned int height);
+	void update(unsigned int width, unsigned int height, Image* gBufferDepthImage);
 
 	void beginPass(VkCommandBuffer commandBuffer) const;
 	void endPass(VkCommandBuffer commandBuffer) const;

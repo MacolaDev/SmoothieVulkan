@@ -123,7 +123,7 @@ VkInstance SmoothieCore::createVulkanInstance(
 
 	debugCreateInfo.pfnUserCallback = debugCallback;
 
-
+	
 	if (CreateDebugUtilsMessengerEXT(instance, &debugCreateInfo, nullptr, &debugMessenger) != VK_SUCCESS)
 	{
 		return nullptr;
@@ -318,4 +318,32 @@ VkQueue SmoothieCore::getPresentQueue()
 VkCommandPool SmoothieCore::getCommandPool()
 {
 	return commandPool;
+}
+
+static void destroyDebugMessanger(VkInstance instance, VkDebugUtilsMessengerEXT messenger, const VkAllocationCallbacks* pAllocator)
+{	
+	auto func = (PFN_vkDestroyDebugUtilsMessengerEXT)vkGetInstanceProcAddr(instance, "vkDestroyDebugUtilsMessengerEXT");
+	if (func != nullptr)
+	{
+		return func(instance, messenger, pAllocator);
+	}
+	
+}
+
+void SmoothieCore::destroyEngine()
+{
+	vkDestroyCommandPool(device, commandPool, nullptr);
+	commandPool = nullptr;
+
+	vkDestroyDevice(device, nullptr);
+	device = nullptr;
+
+	destroyDebugMessanger(instance, debugMessenger, nullptr);
+	debugMessenger = nullptr;
+
+	vkDestroySurfaceKHR(instance, surface, nullptr);
+	surface = nullptr;
+
+	vkDestroyInstance(instance, nullptr);
+	instance = nullptr;
 }

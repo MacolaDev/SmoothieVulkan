@@ -181,15 +181,25 @@ void SwapChain::create(unsigned int width, unsigned int height)
 
 }
 
+void SwapChain::update(unsigned int width, unsigned int height)
+{
+	destroy();
+	create(width, height);
+}
+
 void SwapChain::destroy()
 {
 	vkDestroyRenderPass(SmoothieCore::getDevice(), defaultRenderPass, nullptr);
+	defaultRenderPass = nullptr;
 	for (size_t i = 0; i < swapChainImages.size(); i++) 
 	{
 		vkDestroyFramebuffer(SmoothieCore::getDevice(), defaultFramebuffers[i], nullptr);
+		defaultFramebuffers[i] = nullptr;
 		vkDestroyImageView(SmoothieCore::getDevice(), swapChainImageViews[i], nullptr);
+		swapChainImageViews[i] = nullptr;
 	}
 	vkDestroySwapchainKHR(SmoothieCore::getDevice(), swapChain, nullptr);
+	swapChain = nullptr;
 }
 
 VkRenderPass SwapChain::getDefaultRenderPass()
