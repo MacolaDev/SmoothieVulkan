@@ -26,6 +26,12 @@ static void resizeCallback(GLFWwindow* window, int width, int height)
 	SmoothieCore::updateRenderingResolution(width, height);
 }
 
+#ifdef _DEBUG
+	constexpr bool useValidationlayers = true;
+#else
+	constexpr  bool useValidationlayers = false;
+#endif
+
 int main()
 {
 
@@ -55,7 +61,7 @@ int main()
 	extensions.push_back(VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME);
 	
 	//vulkan instance
-	auto instance = SmoothieCore::createVulkanInstance(extensions.data(), extensions.size(), false);
+	auto instance = SmoothieCore::createVulkanInstance(extensions.data(), extensions.size(), useValidationlayers);
 	VkSurfaceKHR vksurface = nullptr;
 	glfwCreateWindowSurface(instance, window, nullptr, &vksurface);
 	
