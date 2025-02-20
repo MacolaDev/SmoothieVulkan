@@ -46,7 +46,7 @@ and copy-pasting this command in the terminal: ``import sys; sys.version``
 
 Clone the repository first:
 
-``git clone https://github.com/MacolaDev/Smoothie.git --recursive``
+``git clone https://github.com/MacolaDev/SmoothieVulkan.git --recursive``
 
 Then go to folder where you cloned this repository and run :
 ``build_all_debug.bat`` or ``build_all_release.bat`` 

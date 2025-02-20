@@ -1,5 +1,5 @@
 #include "Mesh.h"
-#include <vma/vk_mem_alloc.h>
+#include <vk_mem_alloc.h>
 #include "Core/VMA.h"
 #define _SMOOTHIE_ENGINE
 #include "SmoothieCore.h"
