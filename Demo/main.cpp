@@ -51,7 +51,7 @@ int main()
 
 	//Disable cursor
 	glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-
+	
 	//Vulkan extensions
 	uint32_t glfwExtensionCount = 0;
 	const char** glfwExtensions;

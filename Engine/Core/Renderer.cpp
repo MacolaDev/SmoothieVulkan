@@ -6,11 +6,11 @@
 #include "SwapChain.h"
 #include "Core/Multithreading.h"
 
-VkCommandBuffer Renderer::renderCommandBuffer = nullptr;
+std::vector<VkCommandBuffer> Renderer::renderCommandBuffers;
 
-VkSemaphore Renderer::imageAvailableSemaphore = nullptr;
-VkSemaphore Renderer::renderFinishedSemaphore = nullptr;
-VkFence Renderer::fence = nullptr;
+std::vector<VkSemaphore> Renderer::imageAvailableSemaphores;
+std::vector<VkSemaphore> Renderer::renderFinishedSemaphores;
+std::vector<VkFence> Renderer::inFlightFences;
 
 void Renderer::createRenderer()
 {
@@ -22,63 +22,77 @@ void Renderer::createRenderer()
 	allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
 	allocInfo.commandBufferCount = 1;
 
-	vkAllocateCommandBuffers(SmoothieCore::getDevice(), &allocInfo, &renderCommandBuffer);
+	renderCommandBuffers.resize(MAX_FRAMES_IN_FLIGHT);
+	for (unsigned int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
+	{
+		vkAllocateCommandBuffers(SmoothieCore::getDevice(), &allocInfo, &renderCommandBuffers[i]);
+	}
 	
 
 	//********** Semaphores and fences ************//
 	VkSemaphoreCreateInfo semaphoreInfo{};
 	semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
 
-	vkCreateSemaphore(SmoothieCore::getDevice(), &semaphoreInfo, nullptr, &imageAvailableSemaphore);
-	vkCreateSemaphore(SmoothieCore::getDevice(), &semaphoreInfo, nullptr, &renderFinishedSemaphore);
-	
+	imageAvailableSemaphores.resize(MAX_FRAMES_IN_FLIGHT);
+	renderFinishedSemaphores.resize(MAX_FRAMES_IN_FLIGHT);
+	for (unsigned int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
+	{
+		vkCreateSemaphore(SmoothieCore::getDevice(), &semaphoreInfo, nullptr, &imageAvailableSemaphores[i]);
+		vkCreateSemaphore(SmoothieCore::getDevice(), &semaphoreInfo, nullptr, &renderFinishedSemaphores[i]);
+	}
+
 	VkFenceCreateInfo fenceInfo{};
 	fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
 	fenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
 
-	vkCreateFence(SmoothieCore::getDevice(), &fenceInfo, nullptr, &fence);
+	inFlightFences.resize(MAX_FRAMES_IN_FLIGHT);
+	for (unsigned int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
+	{
+		vkCreateFence(SmoothieCore::getDevice(), &fenceInfo, nullptr, &inFlightFences[i]);
+	}
 
 }
 
 static std::mutex renderMutex;
 
+static unsigned int currentFrame = 0;
 void Renderer::draw()
 {
-	vkWaitForFences(SmoothieCore::getDevice(), 1, &fence, VK_TRUE, UINT64_MAX);
-	vkResetFences(SmoothieCore::getDevice(), 1, &fence);
+	vkWaitForFences(SmoothieCore::getDevice(), 1, &inFlightFences[currentFrame], VK_TRUE, UINT64_MAX);
+	vkResetFences(SmoothieCore::getDevice(), 1, &inFlightFences[currentFrame]);
 
 	uint32_t imageIndex;
-	vkAcquireNextImageKHR(SmoothieCore::getDevice(), SwapChain::getSwapChain(), UINT64_MAX, imageAvailableSemaphore, VK_NULL_HANDLE, &imageIndex);
+	vkAcquireNextImageKHR(SmoothieCore::getDevice(), SwapChain::getSwapChain(), UINT64_MAX, imageAvailableSemaphores[currentFrame], VK_NULL_HANDLE, &imageIndex);
 	
-	vkResetCommandBuffer(renderCommandBuffer, 0);
+	vkResetCommandBuffer(renderCommandBuffers[currentFrame], 0);
 
 	VkCommandBufferBeginInfo commandBufferBeginInfo{};
 	commandBufferBeginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
 	commandBufferBeginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
 
-	vkBeginCommandBuffer(renderCommandBuffer, &commandBufferBeginInfo);
-	DeferredPipeline::draw(renderCommandBuffer, imageIndex);
-	vkEndCommandBuffer(renderCommandBuffer);
+	vkBeginCommandBuffer(renderCommandBuffers[currentFrame], &commandBufferBeginInfo);
+	DeferredPipeline::draw(renderCommandBuffers[currentFrame], imageIndex);
+	vkEndCommandBuffer(renderCommandBuffers[currentFrame]);
 	
 	VkSubmitInfo submitInfo{};
 	submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 	submitInfo.waitSemaphoreCount = 1;
-	submitInfo.pWaitSemaphores = &imageAvailableSemaphore;
+	submitInfo.pWaitSemaphores = &imageAvailableSemaphores[currentFrame];
 
 	VkPipelineStageFlags waitStages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
 	submitInfo.pWaitDstStageMask = waitStages;
 
 	submitInfo.commandBufferCount = 1;
-	submitInfo.pCommandBuffers = &renderCommandBuffer;
+	submitInfo.pCommandBuffers = &renderCommandBuffers[currentFrame];
 	submitInfo.signalSemaphoreCount = 1;
-	submitInfo.pSignalSemaphores = &renderFinishedSemaphore;
+	submitInfo.pSignalSemaphores = &renderFinishedSemaphores[currentFrame];
 
-	vkQueueSubmit(SmoothieCore::getGraphicsQueue(), 1, &submitInfo, fence);
+	vkQueueSubmit(SmoothieCore::getGraphicsQueue(), 1, &submitInfo, inFlightFences[currentFrame]);
 
 	VkPresentInfoKHR presentInfo{};
 	presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
 	presentInfo.waitSemaphoreCount = 1;
-	presentInfo.pWaitSemaphores = &renderFinishedSemaphore;
+	presentInfo.pWaitSemaphores = &renderFinishedSemaphores[currentFrame];
 	
 	auto swapchain = SwapChain::getSwapChain();
 	presentInfo.swapchainCount = 1;
@@ -89,19 +103,25 @@ void Renderer::draw()
 	vkQueuePresentKHR(SmoothieCore::getPresentQueue(), &presentInfo);
 
 	MultithreadSubmissions::submitGraphicsQueue();
+
+	currentFrame = (currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
 }
 
 void Renderer::destroyRenderer()
 {
 	vkQueueWaitIdle(SmoothieCore::getGraphicsQueue());
 	
-	vkDestroyFence(SmoothieCore::getDevice(), fence, nullptr);
-	fence = nullptr;
+	for (unsigned int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
+	{
+		vkDestroyFence(SmoothieCore::getDevice(), inFlightFences[i], nullptr);
+		inFlightFences[i] = nullptr;
 
-	vkDestroySemaphore(SmoothieCore::getDevice(), renderFinishedSemaphore, nullptr);
-	renderFinishedSemaphore = nullptr;
+		vkDestroySemaphore(SmoothieCore::getDevice(), renderFinishedSemaphores[i], nullptr);
+		renderFinishedSemaphores[i] = nullptr;
 
-	vkDestroySemaphore(SmoothieCore::getDevice(), imageAvailableSemaphore, nullptr);
-	imageAvailableSemaphore = nullptr;
+		vkDestroySemaphore(SmoothieCore::getDevice(), imageAvailableSemaphores[i], nullptr);
+		imageAvailableSemaphores[i] = nullptr;
+	}
+
 	
 }
