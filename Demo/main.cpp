@@ -69,7 +69,7 @@ int main()
 	
 	//Init engine
 	SmoothieCore::initEngine(
-		1, //Change index to the one you want from the gpuNames
+		0, //Change index to the one you want from the gpuNames
 		vksurface,
 		WINDOW_WIDTH, 
 		WINDOW_HEIGHT);

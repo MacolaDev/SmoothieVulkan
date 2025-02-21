@@ -38,7 +38,7 @@ ShaderProperty::ShaderProperty(const Element& propertyElement, const std::vector
 
 	//model mitrices pool
 	VkDescriptorPoolSize modelMatricesPool{};
-	modelMatricesPool.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+	modelMatricesPool.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
 	modelMatricesPool.descriptorCount = 1;
 
 	//Texture descriptor pool
@@ -50,7 +50,7 @@ ShaderProperty::ShaderProperty(const Element& propertyElement, const std::vector
 	poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
 	
 	VkDescriptorPoolSize poolSizes[] = { texturePoolSize, modelMatricesPool };
-	poolInfo.poolSizeCount = 1;
+	poolInfo.poolSizeCount = 2;
 	poolInfo.pPoolSizes = poolSizes;
 	
 	poolInfo.maxSets = 1;
@@ -62,7 +62,7 @@ ShaderProperty::ShaderProperty(const Element& propertyElement, const std::vector
 	VkDescriptorSetLayoutBinding matricesLayout{};
 	matricesLayout.binding = 0;
 	matricesLayout.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-	matricesLayout.descriptorCount = 3;
+	matricesLayout.descriptorCount = 1;
 	matricesLayout.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
 	matricesLayout.pImmutableSamplers = nullptr;
 	descriptorSetLayouts.push_back(matricesLayout);

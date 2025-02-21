@@ -8,7 +8,6 @@ layout (set = 0, binding = 0) uniform samplerCube environmentMap;
 
 layout(push_constant, std430) uniform pc
 {
-	mat4 projection;
 	mat4 view;
     float roughness;
 };

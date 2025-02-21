@@ -461,7 +461,7 @@ static void createGraphicsPipelineCubemap(
 	VkPushConstantRange range = {};
 	range.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
 	range.offset = 0;
-	range.size = 2 * sizeof(Matrix4x4);
+	range.size = sizeof(Matrix4x4);
 
 	VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
 	pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
@@ -533,19 +533,12 @@ static void generateViewMatrices(std::array<SmoothieMath::Matrix4x4, 6>& matrice
 	matrices[5] = matrix;
 }
 
-struct PushContantHelper 
-{
-	SmoothieMath::Matrix4x4 projection;
-	SmoothieMath::Matrix4x4 view;
-};
-
 static void generateHDRCubemap(
 	VkPipeline pipeline,
 	VkPipelineLayout pipelineLayout,
 	VkRenderPass renderPass,
 	VkFramebuffer framebuffer,
 	VkDescriptorSet descriptorSet,
-	const SmoothieMath::Matrix4x4& projectionMatrix,
 	const std::array<SmoothieMath::Matrix4x4, 6>& viewMatrices,
 	const Image& cubemapImage,
 	const Image& renderTarget)
@@ -612,11 +605,8 @@ static void generateHDRCubemap(
 			VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSet,
 			0, nullptr);
 
-		PushContantHelper pushConstants;
-		pushConstants.projection = projectionMatrix;
-		pushConstants.view = viewMatrices[i];
 
-		vkCmdPushConstants(commandBuffer.buffer, pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(PushContantHelper), &pushConstants);
+		vkCmdPushConstants(commandBuffer.buffer, pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(Matrix4x4), &viewMatrices[i]);
 
 		vkCmdDraw(commandBuffer.buffer, 36, 1, 0, 0);
 		vkCmdEndRenderPass(commandBuffer.buffer);
@@ -778,7 +768,6 @@ static void generateIrradianceCubemap(
 	VkRenderPass renderPass,
 	VkFramebuffer framebuffer,
 	VkDescriptorSet descriptorSet,
-	const SmoothieMath::Matrix4x4& projectionMatrix,
 	const std::array<SmoothieMath::Matrix4x4, 6>& viewMatrices,
 	const Image& irradianceImage,
 	const Image& renderTarget) 
@@ -845,11 +834,7 @@ static void generateIrradianceCubemap(
 			VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSet,
 			0, nullptr);
 
-		PushContantHelper pushConstants;
-		pushConstants.projection = projectionMatrix;
-		pushConstants.view = viewMatrices[i];
-
-		vkCmdPushConstants(commandBuffer.buffer, pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(PushContantHelper), &pushConstants);
+		vkCmdPushConstants(commandBuffer.buffer, pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(Matrix4x4), &viewMatrices[i]);
 
 		vkCmdDraw(commandBuffer.buffer, 36, 1, 0, 0);
 		vkCmdEndRenderPass(commandBuffer.buffer);
@@ -1017,7 +1002,7 @@ static void createGraphicsPipelinePrefilter(VkPipeline& pipeline, VkPipelineLayo
 	VkPushConstantRange range{};
 	range.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
 	range.offset = 0;
-	range.size = 2 * sizeof(Matrix4x4) + sizeof(float);
+	range.size = sizeof(Matrix4x4) + sizeof(float);
 
 	VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
 	pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
@@ -1070,7 +1055,6 @@ static void createGraphicsPipelinePrefilter(VkPipeline& pipeline, VkPipelineLayo
 
 struct PrefilterPushConstantHelper 
 {
-	SmoothieMath::Matrix4x4 projection;
 	SmoothieMath::Matrix4x4 view;
 	float roughness = 0;
 };
@@ -1082,7 +1066,6 @@ static void drawPrefilterImageData(
 	VkPipeline pipeline,
 	VkDescriptorSet descriptorSet,
 	VkPipelineLayout pipelineLayout,
-	const SmoothieMath::Matrix4x4& projectionMatrix,
 	const std::array<SmoothieMath::Matrix4x4, 6> viewMatrices,
 	int layer,
 	const std::array<Image, 5>& renderTargets,
@@ -1133,7 +1116,6 @@ static void drawPrefilterImageData(
 
 
 		PrefilterPushConstantHelper pushConstants;
-		pushConstants.projection = projectionMatrix;
 		pushConstants.view = viewMatrices[layer];
 		pushConstants.roughness = (float)mip / (float)(framebuffers.size() - 1);
 
@@ -1210,7 +1192,6 @@ static void generatePrefilterCubemap(
 	VkRenderPass renderPass,
 	std::array<VkFramebuffer, 5> framebuffers,
 	VkDescriptorSet descriptorSet,
-	const SmoothieMath::Matrix4x4& projectionMatrix,
 	const std::array<SmoothieMath::Matrix4x4, 6>& viewMatrices,
 	const Image& prefilterImage,
 	const std::array<Image, 5>& renderTargets)
@@ -1240,7 +1221,7 @@ static void generatePrefilterCubemap(
 
 	for (int layer = 0; layer < 6; layer++)
 	{
-		drawPrefilterImageData(commandBuffer.buffer, framebuffers, renderPass, pipeline, descriptorSet, pipelineLayout, projectionMatrix,
+		drawPrefilterImageData(commandBuffer.buffer, framebuffers, renderPass, pipeline, descriptorSet, pipelineLayout,
 			viewMatrices, layer, renderTargets, prefilterImage);
 	}
 
@@ -1303,11 +1284,9 @@ void PBRCubemaps::create(const std::string& file)
 	//Matrices used in shader
 	std::array<SmoothieMath::Matrix4x4, 6> viewMatrices;
 	generateViewMatrices(viewMatrices);
-	SmoothieMath::Matrix4x4 projectionMatrix;
-	projectionMatrix.perspectiveProjection(90.0f, 1.0f, 0.1f, 10.0f);
 	
 
-	generateHDRCubemap(pipeline, pipelineLayout, renderPass, framebuffer, descriptors.descriptorSet, projectionMatrix, viewMatrices, HDRCubemap, tempRenderTarget);
+	generateHDRCubemap(pipeline, pipelineLayout, renderPass, framebuffer, descriptors.descriptorSet, viewMatrices, HDRCubemap, tempRenderTarget);
 
 
 	//Freeing used resources
@@ -1337,7 +1316,7 @@ void PBRCubemaps::create(const std::string& file)
 	createGraphicsPipelineCubemap(pipeline, pipelineLayout, pipelineHelper);
 
 	generateIrradianceCubemap(pipeline, pipelineLayout, renderPass, framebuffer, descriptors.descriptorSet,
-		projectionMatrix, viewMatrices, IrradianceMap, tempRenderTarget);
+		viewMatrices, IrradianceMap, tempRenderTarget);
 
 	destroyPipelineData(pipelineLayout, pipeline);
 	vkDestroyFramebuffer(SmoothieCore::getDevice(), framebuffer, nullptr);
@@ -1364,7 +1343,7 @@ void PBRCubemaps::create(const std::string& file)
 	pipelineHelper.descriptorSetLayout = descriptors.descriptorSetLayout;
 	createGraphicsPipelinePrefilter(pipeline, pipelineLayout, pipelineHelper);
 
-	generatePrefilterCubemap(pipeline, pipelineLayout, renderPass, framebufferMipChain, descriptors.descriptorSet, projectionMatrix,
+	generatePrefilterCubemap(pipeline, pipelineLayout, renderPass, framebufferMipChain, descriptors.descriptorSet,
 		viewMatrices, PrefilterMap, tempImageMipChain);
 
 	destroyPipelineData(pipelineLayout, pipeline);
