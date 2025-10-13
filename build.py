@@ -21,12 +21,12 @@ def main():
     subprocess.run([sys.executable, "update_glslang_sources.py"], cwd = "include/glslang")
     
     print("Building libraries...")
-    subprocess.run(["cmake",
+    subprocess.run(["cmake ",
                     "-S", "."
-                    "-B", "build"])
+                    "-B", "."])
 
     subprocess.run(["cmake",
-                    "--build", "build",
+                    "--build", ".",
                     "--config", args.config])
 
 
