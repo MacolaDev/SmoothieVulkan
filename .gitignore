@@ -17,3 +17,5 @@ CMakeCache.txt
 *.pyc
 *.exp
 Exporter/paths.txt
+include/glslang
+include/
