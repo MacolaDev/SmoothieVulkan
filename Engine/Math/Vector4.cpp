@@ -86,6 +86,11 @@ Vector4 Vector4::operator * (const float& scalar) const
 		w * scalar);
 }
 
+Vector4 SmoothieMath::Vector4::operator/(const float& scalar) const
+{
+	return { x / scalar, y / scalar, z / scalar, w / scalar };
+}
+
 float SmoothieMath::Vector4::operator[](const int index) const
 {
 	if (index == 0) return x;

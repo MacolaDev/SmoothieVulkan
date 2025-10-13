@@ -9,7 +9,7 @@ static inline int getIntFromFile(std::ifstream& file) {
 	return value;
 }
 
-
+using namespace Depricated;
 GeometryFile::GeometryFile(const std::string& filepath) : indexBufferType(0)
 {
 	auto file = std::ifstream(filepath, std::ios_base::binary);

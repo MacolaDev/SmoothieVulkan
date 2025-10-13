@@ -1,90 +1,26 @@
 #include "Camera.h"
+#include <math.h>
+
 using namespace Smoothie;
 using namespace SmoothieMath;
 
-SmoothieMath::Vector3 Smoothie::Camera::getCameraPosition() const
+void Camera::updateCameraMatrices()
 {
-	return cameraPos;
-}
-
-void Smoothie::Camera::setCameraPosition(const SmoothieMath::Vector3& position)
-{
-	cameraPos = position;
-}
-
-SmoothieMath::Vector3 Smoothie::Camera::getCameraFront() const
-{
-	return cameraFront;
-}
-
-void Smoothie::Camera::setCameraFront(const SmoothieMath::Vector3& front)
-{
-	cameraFront = front;
-}
-
-SmoothieMath::Vector3 Smoothie::Camera::getCameraUp() const
-{
-	return cameraUp;
-}
-
-void Smoothie::Camera::setCameraUp(const SmoothieMath::Vector3& up)
-{
-	cameraUp = up;
-}
-
-void Camera::updateCameraPosition(const Vector3& position)
-{
-	cameraPos = position;
-}
-
-void Camera::updateCameraFront(const Vector3& front)
-{
-	cameraFront = front;
-}
-
-void Camera::updateCameraViewMatrices()
-{
+	projectionMatrix.perspectiveProjection(fovy, aspec, zNear, zFar);
+	invProjectionMatrix = inverse(projectionMatrix);
 	cameraMatrix.lookAtMatrix(cameraPos, cameraPos + cameraFront, cameraUp);
-	projectionViewMatrix = cameraMatrix * projectionMatrix;
+	projectionViewMatrix = projectionMatrix * cameraMatrix;
+	invProjectionViewMatrix = inverse(projectionViewMatrix);
 }
 
-void Smoothie::Camera::updateProjectionMatrix(float fovy, float aspec, float zNear, float zFar)
-{
-	projectionMatrix.perspectiveProjection(fovy, aspec, zNear, zFar);
-}
-
-void Smoothie::Camera::updateProjectionMatrix()
-{
-	projectionMatrix.perspectiveProjection(fovy, aspec, zNear, zFar);
-}
-
-void Smoothie::Camera::setTargetExposure(float exposure)
-{
-	this->targetExposure = exposure;
-}
-
-void Smoothie::Camera::setAspecRatio(float ratio)
-{
-	aspec = ratio;
-}
-
-float Smoothie::Camera::getTargetExposure()
-{
-	return targetExposure;
-}
-
-float Smoothie::Camera::getFarPlane() const
-{
-	return zFar;
-}
-
-CameraUniformBufferData Smoothie::Camera::getUniformBufferData() const
+CameraUniformBufferData Smoothie::Camera::getCameraBufferData() const
 {
 	CameraUniformBufferData data;
 	data.projectionMatrix = projectionMatrix;
 	data.cameraMatrix = cameraMatrix;
 	data.cameraPos = cameraPos;
 	data.projectionViewMatrix = projectionViewMatrix;
+	data.invProjectionViewMatrix = invProjectionViewMatrix;
 	return data;
 }
 
@@ -99,9 +35,26 @@ Camera::Camera(const Vector3& cameraPos, const Vector3& cameraFront, const Vecto
 
 	this->fovy = fovy;
 	this->aspec = aspec;
-
+	
 	cameraMatrix.lookAtMatrix(cameraPos, cameraPos + cameraFront, cameraUp);
 	projectionMatrix.perspectiveProjection(fovy, aspec, zNear, zFar);
-	projectionViewMatrix = cameraMatrix * projectionMatrix;
+	projectionViewMatrix = projectionMatrix * cameraMatrix;
+	invProjectionMatrix = inverse(projectionMatrix);
+	invProjectionViewMatrix = inverse(projectionViewMatrix);
+}
 
+static inline Vector3 computeWorldSpacePosition(const SmoothieMath::Matrix4x4& invProjectionViewMatrix, const Vector3& NDC) 
+{
+	const Vector4 result = invProjectionViewMatrix * Vector4(NDC.x, NDC.y, NDC.z, 1.0f);
+	return { 
+		result.x / result.w, 
+		result.y / result.w, 
+		result.z / result.w};
+}
+
+static inline Vector3 getNormalFromTriangle(const Vector3& v0, const Vector3& v1, const Vector3& v2)
+{
+	const auto a = v1 - v0;
+	const auto b = v2 - v0;
+	return cross(a, b);
 }

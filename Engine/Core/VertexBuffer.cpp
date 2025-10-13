@@ -1,6 +1,8 @@
 #include "VertexBuffer.h"
 #include "Math/SmoothieMath.h"
 using namespace SmoothieMath;
+using namespace Depricated;
+
 std::vector<VkVertexInputAttributeDescription> xyznuvtb::getVertexAttributes() const
 {
     std::vector<VkVertexInputAttributeDescription> descriptors;

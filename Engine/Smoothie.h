@@ -1,7 +1,7 @@
-#include "Core/LoadedModels.h"
+#pragma once
 #include "Core/SmoothieCore.h"
+#include "Core/Multithreading.h"
 
-#include <vector>
-extern const std::vector<const char*> SMOOTHIE_VALIDATION_LAYERS;
-
+#include "ResourceManager/XML.h"
+#include "Effects/Deferred_Core.h"
 

@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="VcsDirectoryMappings">
+    <mapping directory="" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/include/SPIRV-Cross" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/include/VulkanMemoryAllocator" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/include/glfw" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/include/glslang" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/include/imgui" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/include/stb" vcs="Git" />
+  </component>
+</project>

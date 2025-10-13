@@ -10,7 +10,7 @@ namespace SmoothieMath {
 
 
 		Vector3(float x = 0, float y = 0, float z = 0);
-		
+		Vector3(float value);
 		float length() const;
 
 		void normalizeVector();
@@ -22,6 +22,7 @@ namespace SmoothieMath {
 		Vector3 operator * (const Vector3& other) const;
 		Vector3 operator * (const float& scalar) const;
 		Vector3 operator / (float& scalar) const;
+		Vector3 operator - () const;
 		void operator += (const Vector3& other);
 		void operator -= (const Vector3& other);
 
@@ -35,5 +36,5 @@ namespace SmoothieMath {
 	Vector3 normalize(Vector3& vector);
 	Vector3 cross(const Vector3& A, const Vector3& B);
 	
-	
+	Vector3 operator * (float scalar, const Vector3& other);
 }

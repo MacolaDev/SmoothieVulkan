@@ -4,11 +4,7 @@
 #include <Smoothie.h>
 #include <vector>
 #include "Demo.h"
-
-const std::vector<const char*> SMOOTHIE_VALIDATION_LAYERS =
-{
-	"VK_LAYER_KHRONOS_validation"
-};
+#include <memory>
 
 const unsigned int WINDOW_WIDTH = 1280;
 const unsigned int WINDOW_HEIGHT = 720;
@@ -25,12 +21,6 @@ static void resizeCallback(GLFWwindow* window, int width, int height)
 	FreeCamera::resolutionUpdate(width, height);
 	SmoothieCore::updateRenderingResolution(width, height);
 }
-
-#ifdef _DEBUG
-	constexpr bool useValidationlayers = true;
-#else
-	constexpr  bool useValidationlayers = false;
-#endif
 
 int main()
 {
@@ -52,27 +42,16 @@ int main()
 	//Disable cursor
 	glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 	
-	//Vulkan extensions
-	uint32_t glfwExtensionCount = 0;
-	const char** glfwExtensions;
-	glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
-	std::vector<const char*> extensions(glfwExtensions, glfwExtensions + glfwExtensionCount);
-	extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
-	extensions.push_back(VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME);
-	
-	//vulkan instance
-	auto instance = SmoothieCore::createVulkanInstance(extensions.data(), extensions.size(), useValidationlayers);
-	VkSurfaceKHR vksurface = nullptr;
-	glfwCreateWindowSurface(instance, window, nullptr, &vksurface);
-	
-	auto gpuNames = SmoothieCore::getPhysicalDeviceNames(); 
-	
 	//Init engine
-	SmoothieCore::initEngine(
-		0, //Change index to the one you want from the gpuNames
-		vksurface,
-		WINDOW_WIDTH, 
-		WINDOW_HEIGHT);
+	std::shared_ptr<Smoothie::SmoothieCore_Initialization> initInfoBase = std::make_shared<SmoothieEngineInitInfo>();
+	SmoothieEngineInitInfo* data = dynamic_cast<SmoothieEngineInitInfo*>(initInfoBase.get());
+	data->window = window;
+
+	if (SmoothieCore::initEngine(initInfoBase, WINDOW_WIDTH, WINDOW_HEIGHT) != 0)
+	{
+		std::cout << "Failed to initialize the engine!" << std::endl;
+		return -1;
+	}
 
 	SmoothieCore::loadScene("resources/DemoScene/Demo.sscene");
 	while (!glfwWindowShouldClose(window))
@@ -84,6 +63,6 @@ int main()
 	}
 
 	SmoothieCore::removeScene();
-	SmoothieCore::finalize();
+	SmoothieCore::finitEngine();
 	glfwTerminate();
 }

@@ -6,26 +6,30 @@
 #include <memory>
 #include <vector>
 #include "ResourceManager/ResourceHandler.h"
+#include "vk_mem_alloc.h"
 
-struct Mesh: private ResourceHandler<Mesh>
+
+namespace Smoothie 
 {
-	std::string filepath;
-	VkBuffer vertexBuffer = nullptr;
-	VmaAllocation vertexBufferAllocation = nullptr;
-	std::shared_ptr<VertexBufferBase> vertexBufferAttributeType;
-	
-	VkBuffer indexBuffer = nullptr;
-	VmaAllocation indexBufferAllocation = nullptr;
 
-	VkIndexType indexType = VK_INDEX_TYPE_UINT32;
-	unsigned int numberOfIndices = 0;
+	class Mesh : public ResourceHandler<Mesh>
+	{
+	public:
+		int create(const std::string& filepath) override;
+		void destroy() override;
+		std::string filepath;
+		VkBuffer vertexBuffer = nullptr;
+		VmaAllocation vertexBufferAllocation = nullptr;
+		std::shared_ptr<Depricated::VertexBufferBase> vertexBufferAttributeType;
 
-	Mesh(const std::string& filepath);
+		VkBuffer indexBuffer = nullptr;
+		VmaAllocation indexBufferAllocation = nullptr;
 
-	void create(const std::string& filepath);
-	void destroy();
+		VkIndexType indexType = VK_INDEX_TYPE_UINT32;
+		unsigned int numberOfIndices = 0;
+			
+		Mesh() = default;
+	};
 
-	Mesh() = default;
-};
 
-
+}

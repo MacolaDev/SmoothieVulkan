@@ -25,23 +25,22 @@ Vector3::Vector3(float x, float y, float z)
 
 }
 
+SmoothieMath::Vector3::Vector3(float value)
+{
+	x = y = z = value;
+}
+
 float Vector3::length() const
 {
-	float x2 = x * x;
-	float y2 = y * y;
-	float z2 = z * z;
+	const float x2 = x * x;
+	const float y2 = y * y;
+	const float z2 = z * z;
 	return std::sqrt(x2 + y2 + z2);
 }
 
 void Vector3::normalizeVector()
 {
-
-	float vectorLength = length();
-
-	if (vectorLength == 0) {
-		std::cout << "Vector has 0 lenght. Cant normalize it." << std::endl;
-		return;
-	}
+	const float vectorLength = length();
 
 	x = x / vectorLength;
 	y = y / vectorLength;
@@ -81,6 +80,11 @@ Vector3 Vector3::operator * ( const float& scalar) const
 Vector3 SmoothieMath::Vector3::operator/(float& scalar) const
 {
 	return Vector3(x/scalar, y/scalar, z/scalar);
+}
+
+Vector3 SmoothieMath::Vector3::operator-() const
+{
+	return Vector3(-x, -y, -z);
 }
 
 void SmoothieMath::Vector3::operator+=(const Vector3& other)
@@ -137,9 +141,9 @@ Vector3 SmoothieMath::normalize(Vector3& vector)
 Vector3 SmoothieMath::cross(const Vector3& A, const Vector3& B)
 {
 
-	float V1 = A.x; float W1 = B.x;
-	float V2 = A.y; float W2 = B.y;
-	float V3 = A.z; float W3 = B.z;
+	const float& V1 = A.x; const float& W1 = B.x;
+	const float& V2 = A.y; const float& W2 = B.y;
+	const float& V3 = A.z; const float& W3 = B.z;
 
 	return Vector3(
 		V2 * W3 - V3 * W2,
@@ -148,3 +152,7 @@ Vector3 SmoothieMath::cross(const Vector3& A, const Vector3& B)
 	);
 }
 
+Vector3 SmoothieMath::operator*(float scalar, const Vector3& other)
+{
+	return other * scalar;
+}

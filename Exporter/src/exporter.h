@@ -29,7 +29,7 @@ struct VertexBufferBase
 {
 public:
 	virtual char* dataPointer() { return nullptr; };
-	virtual size_t bufferSize() const { return 0;};
+	virtual size_t numberOfElements() const { return 0;};
 	virtual void writeToFile(std::ofstream& file) {};
 	virtual void insertVertex(void* vertex) { std::cout << "Called inside: " << __FUNCTION__ << std::endl; };
 };
@@ -53,14 +53,14 @@ public:
 		bufferData.push_back(*(reinterpret_cast<T*>(vertex)));
 	}
 
-	size_t bufferSize() const override
+	size_t numberOfElements() const override
 	{
 		return bufferData.size() * sizeof(T);
 	};
 
 	void writeToFile(std::ofstream& file) override 
 	{
-		file.write(dataPointer(), bufferSize());
+		file.write(dataPointer(), numberOfElements());
 	};
 };
 
@@ -110,3 +110,23 @@ const char calculate_mat_indexes_docs[] =
 "WARNING: Function assumes that one material_index index has 3 vertices that make up that triangle aka len(material_index) == 3 * len(vertex_index)."
 "Check \"calculate_mat_indexes_test.py\" to see proper use of this function.";
 
+PyObject* analyze_shader_file(PyObject* self, PyObject* args);
+const char analyze_shader_file_docs[] = 
+"Analyzes shader files and returns analyzed data of a shader (what textures it uses, uniform variables, vertex shader inputs etc.).\n";
+
+PyObject* run_exporter(PyObject* self, PyObject* args);
+const char run_exporter_docs[] =
+"This is the \"main\" function of exporter. It creates main UI window with options for exporting model and geometry files\n";
+
+static PyMethodDef SEModuleDefs[] =
+{
+	{"calculate_uv_data", calculate_uv_data, METH_O, calculate_uv_data_docs},
+	{"calculate_tangent_data", calculate_tangent_data, METH_O, calculate_tangent_data_docs},
+	{"write_geometry_file", write_geometry_file, METH_O, write_geometry_file_data_docs},
+	{"calculate_uv_data_averaged", calculate_uv_data_averaged, METH_O, calculate_uv_data_averaged_docs},
+	{"calculate_mat_indexes", calculate_mat_indexes, METH_O, calculate_mat_indexes_docs},
+	{"analyze_shader_file", analyze_shader_file, METH_O, analyze_shader_file_docs},
+	{"run_exporter", run_exporter, METH_O, run_exporter_docs},
+
+	{NULL, NULL, 0, NULL}
+};

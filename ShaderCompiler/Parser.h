@@ -11,6 +11,9 @@ struct InputArguments
 
 class SmoothieIncluder: public glslang::TShader::Includer
 {
+	std::string headerFileName;
+	std::string dataFromFile;
+
 public:
 	IncludeResult* includeSystem(const char* headerName, const char* includerName, size_t inclusionDepth) override;
 	IncludeResult* includeLocal(const char* headerName, const char* includerName, size_t inclusionDepth) override;

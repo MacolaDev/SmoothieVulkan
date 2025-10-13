@@ -1,0 +1,121 @@
+#include "Deferred_Descriptors.h"
+#include "Core/SmoothieCore.h"
+
+int Smoothie::DeferredRendering::Deferred_Descriptor_Buffer::create()
+{
+	VkBufferCreateInfo bufferCreateInfo{};
+	bufferCreateInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+	bufferCreateInfo.size = sizeof(DrawingDescriptorSetData);
+	bufferCreateInfo.usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+
+	VmaAllocationCreateInfo allocInfo = {};
+	allocInfo.usage = VMA_MEMORY_USAGE_AUTO;
+	allocInfo.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT;
+	allocInfo.requiredFlags = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+	if (vmaCreateBuffer(SmoothieCore::getVulkanMemoryAllocator(), &bufferCreateInfo, &allocInfo, &buffer, &bufferAllocation, nullptr) != VK_SUCCESS)
+	{
+		std::cout << "Failed to create descriptor buffer!" << std::endl;
+		return 1;
+	}
+
+
+    return 0;
+}
+
+void Smoothie::DeferredRendering::Deferred_Descriptor_Buffer::resize_callback()
+{
+}
+
+void Smoothie::DeferredRendering::Deferred_Descriptor_Buffer::destroy()
+{
+	vmaDestroyBuffer(SmoothieCore::getVulkanMemoryAllocator(), buffer, bufferAllocation);
+	buffer = nullptr, bufferAllocation = nullptr;
+}
+
+int Smoothie::DeferredRendering::Deferred_Descriptors::create()
+{
+	if (buffer.create() != 0)
+	{
+		std::cout << "Failed to create buffer!" << std::endl;
+		return 1;
+	}
+
+	VkDescriptorPoolSize poolSize{};
+	poolSize.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+	poolSize.descriptorCount = 1;
+	VkDescriptorPoolCreateInfo poolInfo{};
+	poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+	poolInfo.poolSizeCount = 1;
+	poolInfo.pPoolSizes = &poolSize;
+	poolInfo.maxSets = 1;
+	if (vkCreateDescriptorPool(SmoothieCore::getDevice(), &poolInfo, nullptr, &descriptorPool) != VK_SUCCESS)
+	{
+		std::cout << "Failed to create descriptor pool!" << std::endl;
+		return 1;
+	}
+
+
+	VkDescriptorSetLayoutBinding layoutBinding{};
+	layoutBinding.binding = 0;
+	layoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+	layoutBinding.descriptorCount = 1;
+	layoutBinding.stageFlags = VK_SHADER_STAGE_ALL;
+	layoutBinding.pImmutableSamplers = nullptr;
+	VkDescriptorSetLayoutCreateInfo layoutInfo{};
+	layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+	layoutInfo.bindingCount = 1;
+	layoutInfo.pBindings = &layoutBinding;
+	if (vkCreateDescriptorSetLayout(SmoothieCore::getDevice(), &layoutInfo, nullptr, &descriptorSetLayout) != VK_SUCCESS)
+	{
+		std::cout << "Failed to create descriptor set layout!" << std::endl;
+		return 1;
+	}
+
+	VkDescriptorSetAllocateInfo descriptorSetAllocInfo{};
+	descriptorSetAllocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+	descriptorSetAllocInfo.descriptorPool = descriptorPool;
+	descriptorSetAllocInfo.descriptorSetCount = 1;
+	descriptorSetAllocInfo.pSetLayouts = &descriptorSetLayout;
+	if (vkAllocateDescriptorSets(SmoothieCore::getDevice(), &descriptorSetAllocInfo, &descriptorSet) != VK_SUCCESS)
+	{
+		std::cout << "Failed to allocate descriptor set!" << std::endl;
+		return 1;
+	}
+
+	VkDescriptorBufferInfo bufferInfo{};
+	bufferInfo.buffer = buffer.getBuffer();
+	bufferInfo.offset = 0;
+	bufferInfo.range = VK_WHOLE_SIZE;
+	VkWriteDescriptorSet descriptorWrite{};
+	descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+	descriptorWrite.dstSet = descriptorSet;
+	descriptorWrite.dstArrayElement = 0;
+	descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+	descriptorWrite.descriptorCount = 1;
+	descriptorWrite.pBufferInfo = &bufferInfo;
+	descriptorWrite.pImageInfo = nullptr;
+
+	vkUpdateDescriptorSets(SmoothieCore::getDevice(), 1, &descriptorWrite, 0, nullptr);
+
+	return 0;
+}
+
+void Smoothie::DeferredRendering::Deferred_Descriptors::destroy()
+{
+	vkDestroyDescriptorSetLayout(SmoothieCore::getDevice(), descriptorSetLayout, nullptr);
+	descriptorSetLayout = nullptr;
+
+	vkDestroyDescriptorPool(SmoothieCore::getDevice(), descriptorPool, nullptr);
+	descriptorPool = nullptr, descriptorSet = nullptr;
+
+	buffer.destroy();
+}
+
+void Smoothie::DeferredRendering::Deferred_Descriptors::resize_callback()
+{
+}
+
+void Smoothie::DeferredRendering::Deferred_Descriptors::update_descriptor_data(const DrawingDescriptorSetData& data)
+{
+	vmaCopyMemoryToAllocation(SmoothieCore::getVulkanMemoryAllocator(), &data, buffer.getAllocation(), 0, sizeof(DrawingDescriptorSetData));
+}

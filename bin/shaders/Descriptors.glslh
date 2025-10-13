@@ -1,0 +1,36 @@
+
+
+#ifdef DESCRIPTOR_CAMERA 
+layout(set = (DESCRIPTOR_CAMERA >> 16), binding = (DESCRIPTOR_CAMERA & 0xFFFF)) uniform UBO0 
+{ 
+    mat4 projectionMatrix; 
+    mat4 invProjectionMatrix;
+    mat4 viewMatrix;
+    vec3 viewPos;
+    mat4 projectionViewMatrix;
+    mat4 invProjectionViewMatrix;
+    uint SCR_WIDTH;
+    uint SCR_HEIGHT;
+} Camera;
+#endif
+
+#ifdef DESCRIPTOR_GENERAL 
+layout(set = (DESCRIPTOR_GENERAL >> 16), binding = (DESCRIPTOR_GENERAL & 0xFFFF)) uniform UBO1
+{ 
+    int SCR_WIDTH;
+	int SCR_HEIGHT;
+	int time;
+} General;
+#endif
+
+#ifdef DESCRIPTOR_ATMOSPHERE
+layout(set = (DESCRIPTOR_ATMOSPHERE >> 16), binding = (DESCRIPTOR_ATMOSPHERE & 0xFFFF)) uniform UBO2
+{
+    mat4 sunModelMatrix;
+	vec3 sunWorldPosition;
+	float sunStrength;
+	float sunSize;
+	vec3 sunColor;
+} Atmosphere;
+#endif
+

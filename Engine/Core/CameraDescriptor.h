@@ -1,18 +1,31 @@
 #pragma once
 #include <vulkan/vulkan.h>
 #include "Core/Camera.h"
-#include "Core/VMA.h"
+#include "Core/Constants.h"
+#include "Core/Descriptor.h"
+#include "Core/Buffer.h"
+#include "vk_mem_alloc.h"
 
-struct CameraDescriptor
+namespace Smoothie
 {
-	static VkDescriptorSet descriptorSet;
-	static VkDescriptorSetLayout descriptorSetLayout;
-	static VkDescriptorPool descriptorPool;
-	static VkBuffer buffer;
-	static VmaAllocation allocation;
 
-	static void create();
-	static void update(const CameraUniformBufferData& data);
-	static void destroy();
+	class CameraDescriptorBuffer : public BufferBase
+	{
 
-};
+	public:
+		int create() override;
+		void resize_callback() override;
+		void destroy() override;
+	};
+
+	class CameraDescriptorSet : public DescriptorBase
+	{
+		void resize_callback() override;
+		CameraDescriptorBuffer buffer;
+	public:
+		int create() override;
+		void update_camera_data(const CameraUniformBufferData& data);
+		void destroy() override;
+
+	};
+}

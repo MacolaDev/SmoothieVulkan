@@ -16,13 +16,13 @@ target_include_directories(SmoothieEngine PRIVATE ${CMAKE_SOURCE_DIR}/include/st
 target_include_directories(SmoothieEngine PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_include_directories(SmoothieEngine PRIVATE ${Vulkan_INCLUDE_DIR})
 
-link_libraries()
-set_target_properties(
-    SmoothieEngine PROPERTIES
-
-    ARCHIVE_OUTPUT_DIRECTORY_DEBUG ${CMAKE_BINARY_DIR}/lib/Debug
-    ARCHIVE_OUTPUT_DIRECTORY_RELEASE ${CMAKE_BINARY_DIR}/lib/Release
-
-    OBJECT_OUTPUT_DIRECTORY_DEBUG "${CMAKE_BINARY_DIR}/intermediate/Debug"
-    OBJECT_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}/intermediate/Release"
-)
+#link_libraries()
+#set_target_properties(
+#    SmoothieEngine PROPERTIES
+#
+#    ARCHIVE_OUTPUT_DIRECTORY_DEBUG ${CMAKE_BINARY_DIR}/lib/Debug
+#    ARCHIVE_OUTPUT_DIRECTORY_RELEASE ${CMAKE_BINARY_DIR}/lib/Release
+#
+#    OBJECT_OUTPUT_DIRECTORY_DEBUG "${CMAKE_BINARY_DIR}/intermediate/Debug"
+#    OBJECT_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}/intermediate/Release"
+#)

@@ -1,54 +1,70 @@
 #pragma once
 #include <vulkan/vulkan.h>
-#include "Core/Image.h"
-#include <array>
+#include "Core/Effect.h"
+#include "vk_mem_alloc.h"
+#include <vector>
 
-struct MipChainImage
-{
-	Image mipImage;
-	unsigned int width = 1, height = 1;
-	VkFramebuffer framebuffer = nullptr;
+namespace Smoothie {
 
-	//downsampling data
-	VkDescriptorPool dwDescriptorPool = nullptr;
-	VkDescriptorSetLayout dwDescriptorSetLayout = nullptr;
-	VkDescriptorSet dwDescriptorSet = nullptr;
-	VkPipelineLayout dwPipelineLayout = nullptr;
-	VkPipeline dwPipeline = nullptr;
+	namespace DeferredRendering
+	{
+		class Bloom: public Effect_Base
+		{
+			VkPipeline higlightPipeline = nullptr;
+			VkPipelineLayout higlightPipelineLayout = nullptr;
 
-	//Upsamling
-	VkDescriptorPool upDescriptorPool = nullptr;
-	VkDescriptorSetLayout upDescriptorSetLayout = nullptr;
-	VkDescriptorSet upDescriptorSet = nullptr;
-	VkPipelineLayout upPipelineLayout = nullptr;
-	VkPipeline upPipeline = nullptr;
+			VkPipeline downsamplingPipeline = nullptr;
+			VkPipelineLayout downsamplingPipelineLayout = nullptr;
 
+			VkPipeline upsamplingPipeline = nullptr;
+			VkPipelineLayout upsamplingPipelineLayout = nullptr;
 
-};
+			VkRenderPass renderPass = nullptr;
 
-constexpr int numberOfMips = 5;
-constexpr float filterRadius = 0.0025f;
+			struct MipChainData
+			{
+				unsigned int width = 1, height = 1;
+				VkImage image = nullptr;
+				VkImageView imageView = nullptr;
+				VmaAllocation allocation = nullptr;
+				VkDescriptorSet dwnDescriptorSet = nullptr;
+				VkDescriptorSet upDescriptorSet = nullptr;
+				VkDescriptorPool descriptorPool = nullptr;
+				VkFramebuffer framebuffer = nullptr;
+			};
 
-class Bloom
-{
+			std::vector<MipChainData> mipChainData;
 
-	static VkDescriptorPool higlightDescriptorPool;
-	static VkDescriptorSetLayout higlightDescriptorSetLayout;
-	static VkDescriptorSet higlightDescriptorSet;
+			VkFramebuffer higlight_Framebuffer = nullptr;
+			VkImage higlight_TargetImage = nullptr;
+			VkImageView higlight_TargetImageView = nullptr;
+			VmaAllocation higlight_TargetAllocation = nullptr;
 
-	static VkPipeline higlightPipeline;
-	static VkPipelineLayout higlightPipelineLayout;
+			VkDescriptorSetLayout descriptorSetLayout = nullptr;
+			VkDescriptorPool descriptorPool = nullptr;
 
-	static std::array<MipChainImage, numberOfMips> mipChainImages;
+		public:
+		
+			VkImage HDRImage = nullptr;
+			VkImageView HDRImageView = nullptr;
 
-	static VkPipeline downsamplingPipeline;
-	static VkPipelineLayout downsamplingPipelineLayout;
+			VkSampler ClampToEdgeLINEAR = nullptr;
 
-public:
-	static void create(unsigned int width, unsigned int height, const Image& HDRIImage);
-	static void bindAndDraw(VkCommandBuffer commandBuffer);
-	static void destroy();
-	static void update(unsigned int width, unsigned int height, const Image& HDRIImage);
-	static Image getBloomImage();
-};
+			VkShaderModule vertexShader = nullptr;
+			VkShaderModule higlightModule = nullptr;
+			VkShaderModule downsampleModule = nullptr;
+			VkShaderModule upsampleModule = nullptr;
+
+			int create() override;
+			void draw(VkCommandBuffer commandBuffer, VkDescriptorSet drawClassDescriptor, unsigned int ImageIndex) const override;
+			void destroy() override;
+			int resize_callback() override;
+
+			VkImageView getFinalImage() const;
+
+			Bloom() = default;
+		};
+
+	}
+}
 

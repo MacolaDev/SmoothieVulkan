@@ -1,25 +1,17 @@
 #include "CameraDescriptor.h"
-#define _SMOOTHIE_ENGINE
 #include "Core/SmoothieCore.h"
-VkDescriptorSet CameraDescriptor::descriptorSet = nullptr;
-VkDescriptorSetLayout CameraDescriptor::descriptorSetLayout = nullptr;
-VkDescriptorPool CameraDescriptor::descriptorPool = nullptr;
-VkBuffer CameraDescriptor::buffer = nullptr;
-VmaAllocation CameraDescriptor::allocation = nullptr;
 
-void CameraDescriptor::create()
+void Smoothie::CameraDescriptorSet::resize_callback(){}
+
+int Smoothie::CameraDescriptorSet::create()
 {
-	VkBufferCreateInfo bufferCreateInfo{};
-	bufferCreateInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-	bufferCreateInfo.size = sizeof(CameraUniformBufferData);
-	bufferCreateInfo.usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
 
-	VmaAllocationCreateInfo allocInfo = {};
-	allocInfo.usage = VMA_MEMORY_USAGE_AUTO;
-	allocInfo.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT;
-	allocInfo.requiredFlags = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
-	vmaCreateBuffer(VMA::getAllocator(), &bufferCreateInfo, &allocInfo, &buffer, &allocation, nullptr);
-	
+	if (buffer.create() != 0)
+	{
+		std::cout << "Failed to create buffer!" << std::endl;
+		return 1;
+	}
+
 	VkDescriptorPoolSize poolSize{};
 	poolSize.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
 	poolSize.descriptorCount = 1;
@@ -29,7 +21,13 @@ void CameraDescriptor::create()
 	poolInfo.poolSizeCount = 1;
 	poolInfo.pPoolSizes = &poolSize;
 	poolInfo.maxSets = 1;
-	vkCreateDescriptorPool(SmoothieCore::getDevice(), &poolInfo, nullptr, &descriptorPool);
+	
+	if(vkCreateDescriptorPool(SmoothieCore::getDevice(), &poolInfo, nullptr, &descriptorPool) != VK_SUCCESS)
+	{
+		std::cout << "Failed to create camera descriptor pool!" << std::endl;
+		return 1;
+	}
+	
 
 	VkDescriptorSetLayoutBinding layoutBinding{};
 	layoutBinding.binding = 0;
@@ -42,17 +40,25 @@ void CameraDescriptor::create()
 	layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
 	layoutInfo.bindingCount = 1;
 	layoutInfo.pBindings = &layoutBinding;
-	vkCreateDescriptorSetLayout(SmoothieCore::getDevice(), &layoutInfo, nullptr, &descriptorSetLayout);
+	if (vkCreateDescriptorSetLayout(SmoothieCore::getDevice(), &layoutInfo, nullptr, &descriptorSetLayout) != VK_SUCCESS)
+	{
+		std::cout << "Failed to create camera descriptor set layout!" << std::endl;
+		return 1;
+	}
 
 	VkDescriptorSetAllocateInfo descriptorSetAllocInfo{};
 	descriptorSetAllocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
 	descriptorSetAllocInfo.descriptorPool = descriptorPool;
 	descriptorSetAllocInfo.descriptorSetCount = 1;
 	descriptorSetAllocInfo.pSetLayouts = &descriptorSetLayout;
-	vkAllocateDescriptorSets(SmoothieCore::getDevice(), &descriptorSetAllocInfo, &descriptorSet);
+	if (vkAllocateDescriptorSets(SmoothieCore::getDevice(), &descriptorSetAllocInfo, &descriptorSet) != VK_SUCCESS)
+	{
+		std::cout << "Failed to allocate camera descriptor set!" << std::endl;
+		return 1;
+	}
 
 	VkDescriptorBufferInfo bufferInfo{};
-	bufferInfo.buffer = buffer;
+	bufferInfo.buffer = buffer.getBuffer();
 	bufferInfo.offset = 0;
 	bufferInfo.range = VK_WHOLE_SIZE;
 
@@ -66,21 +72,49 @@ void CameraDescriptor::create()
 	descriptorWrite.pImageInfo = nullptr;
 
 	vkUpdateDescriptorSets(SmoothieCore::getDevice(), 1, &descriptorWrite, 0, nullptr);
+	return 0;
 }
 
-void CameraDescriptor::destroy()
+void Smoothie::CameraDescriptorSet::update_camera_data(const CameraUniformBufferData& data)
+{
+	vmaCopyMemoryToAllocation(SmoothieCore::getVulkanMemoryAllocator(), &data, buffer.getAllocation(), 0, sizeof(CameraUniformBufferData));
+}
+
+void Smoothie::CameraDescriptorSet::destroy()
 {
 	vkDestroyDescriptorSetLayout(SmoothieCore::getDevice(), descriptorSetLayout, nullptr);
 	descriptorSetLayout = nullptr;
 
 	vkDestroyDescriptorPool(SmoothieCore::getDevice(), descriptorPool, nullptr);
-	descriptorPool = nullptr;
+	descriptorPool = nullptr, descriptorSet = nullptr;
 
-	vmaDestroyBuffer(VMA::getAllocator(), buffer, allocation);
-	buffer = nullptr, allocation = nullptr;
+	buffer.destroy();
 }
 
-void CameraDescriptor::update(const CameraUniformBufferData& data)
+int Smoothie::CameraDescriptorBuffer::create()
 {
-	vmaCopyMemoryToAllocation(VMA::getAllocator(), &data, allocation, 0, sizeof(CameraUniformBufferData));
+	VkBufferCreateInfo bufferCreateInfo{};
+	bufferCreateInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+	bufferCreateInfo.size = sizeof(CameraUniformBufferData);
+	bufferCreateInfo.usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+
+	VmaAllocationCreateInfo allocInfo = {};
+	allocInfo.usage = VMA_MEMORY_USAGE_AUTO;
+	allocInfo.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT;
+	allocInfo.requiredFlags = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+	if (vmaCreateBuffer(SmoothieCore::getVulkanMemoryAllocator(), &bufferCreateInfo, &allocInfo, &buffer, &bufferAllocation, nullptr) != VK_SUCCESS)
+	{
+		std::cout << "Failed to create camera buffer!" << std::endl;
+		return 1;
+	}
+
+	return 0;
+}
+
+void Smoothie::CameraDescriptorBuffer::resize_callback(){}
+
+void Smoothie::CameraDescriptorBuffer::destroy()
+{
+	vmaDestroyBuffer(SmoothieCore::getVulkanMemoryAllocator(), buffer, bufferAllocation);
+	buffer = nullptr, bufferAllocation = nullptr;
 }

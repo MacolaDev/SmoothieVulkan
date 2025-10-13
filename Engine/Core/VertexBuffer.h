@@ -1,9 +1,10 @@
 #pragma once
 #include <vulkan/vulkan.h>
 #include <vector>
-#include "VMA.h"
 #include <memory>
 
+namespace Depricated
+{
 enum VertexBufferType {
 	XYZNUVTB = 0,
 	XYZNUVTBC = 1
@@ -37,3 +38,4 @@ struct xyznuvtbc : public VertexBufferBase
 	std::vector<VkVertexInputAttributeDescription> getVertexAttributes() const override;
 	void populateBindingDescription(VkVertexInputBindingDescription& bindingDescription) const override;
 };
+}

@@ -1,0 +1,15 @@
+<model>
+  <geometryFile>resources\DemoScene\Tree\Tree.sgeometry</geometryFile>
+  <shader>shaders/pbr/treeItPBR.sshader</shader>
+  <property>
+    <Texture>diffuseTexture<value>resources\DemoScene\Tree\TreeDiffuse.png</value></Texture>
+    <Texture>roughnessTexture<value>resources\DemoScene\Tree\TreeRoughness.png</value></Texture>
+    <Texture>normalTexture<value>resources\DemoScene\Tree\TreeNormal.png</value></Texture>
+    <Bool>doubleSided<value>true</value></Bool>
+    <Bool>useAlpha<value>true</value></Bool>
+  </property>
+  <BoundingBox>
+    <min>5.026 -0.0003 -4.3095</min>
+    <max>-6.8093 10.219 4.8632</max>
+  </BoundingBox>
+</model>
