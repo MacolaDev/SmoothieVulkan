@@ -42,7 +42,7 @@ namespace Smoothie
 
 		protected:
 			gBufferPass gBuffer_Pass;
-			HDRPass HDRPass;
+			HDRPass hdrPass;
 
 			std::unordered_map<std::string, VkSampler> samplers;
 			std::unordered_map<std::string, VkShaderModule> system_shaders;
@@ -91,7 +91,7 @@ namespace Smoothie
 
 			
 			VkRenderPass getRenderPassGBuffer() const { return gBuffer_Pass.get_render_pass(); }
-			VkRenderPass getRenderPassHDR() const { return HDRPass.get_render_pass(); }
+			VkRenderPass getRenderPassHDR() const { return hdrPass.get_render_pass(); }
 			VkRenderPass getLightingPass() const { return lighting_renderPass.get_render_pass(); }
 
 			VkDescriptorSet getDescriptorSet() const;

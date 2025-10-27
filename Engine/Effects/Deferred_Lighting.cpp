@@ -3,7 +3,7 @@
 #include <array>
 #include "Core/Pipeline.h"
 #include "Core/Multithreading.h"
-
+#include <cmath>
 int Smoothie::DeferredRendering::Lighting_RenderPass::create()
 {
 	VkAttachmentDescription _attachmentDescription{};
@@ -511,7 +511,7 @@ int Smoothie::DeferredRendering::IndirectLightingMaps::create()
 		return 1;
 	}
 
-	auto& commandBuffer = beginSingleTimeCommands();
+	auto commandBuffer = beginSingleTimeCommands();
 
 	VkImageMemoryBarrier barrier{};
 	barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;

@@ -4,6 +4,7 @@
 #include <iostream>
 #include <filesystem>
 #include <memory>
+#include <cstring>
 
 unsigned int _ShaderDescriptorsReflection_file_data::get_object_size() const
 {

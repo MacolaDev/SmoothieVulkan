@@ -212,8 +212,7 @@ static void __find_variables_in_sets(const DescriptorSetMap& __sets, const std::
 	}
 }
 
-
-static void getFileReflectionFromlang(const glslang::TObjectReflection& reflection, unsigned int stage, _Reflection_type_file_data type, _ShaderDescriptorsReflection_file_data& result, DescriptorSetMap& descriptor_block_data = DescriptorSetMap())
+static void getFileReflectionFromlang(const glslang::TObjectReflection& reflection, unsigned int stage, _Reflection_type_file_data type, _ShaderDescriptorsReflection_file_data& result, DescriptorSetMap& descriptor_block_data)
 {
 	result.name = reflection.name;
 	result.name_size = reflection.name.size();
@@ -361,14 +360,16 @@ static void compileShaders(const std::string& source, std::vector<ShaderCompiler
 		for (int index = 0; index < program.getNumPipeInputs(); index++)
 		{
 			_ShaderDescriptorsReflection_file_data _file_data;
-			getFileReflectionFromlang(program.getPipeInput(index), shader_data.shader_stage, _Reflection_type_file_data::PIPE_INPUT, _file_data);
+			DescriptorSetMap _dummy;
+			getFileReflectionFromlang(program.getPipeInput(index), shader_data.shader_stage, _Reflection_type_file_data::PIPE_INPUT, _file_data, _dummy);
 			shader_data.reflections.push_back(_file_data);
 		}
 
 		for (int index = 0; index < program.getNumPipeOutputs(); index++)
 		{
 			_ShaderDescriptorsReflection_file_data _file_data;
-			getFileReflectionFromlang(program.getPipeOutput(index), shader_data.shader_stage, _Reflection_type_file_data::PIPE_OUTPUT, _file_data);
+			DescriptorSetMap _dummy;
+			getFileReflectionFromlang(program.getPipeOutput(index), shader_data.shader_stage, _Reflection_type_file_data::PIPE_OUTPUT, _file_data, _dummy);
 			shader_data.reflections.push_back(_file_data);
 		}
 

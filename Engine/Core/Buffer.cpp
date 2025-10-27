@@ -1,6 +1,7 @@
 #include "Buffer.h"
 #include <vector>
 #include <memory>
+#include <cstring>
 #include "Core/SmoothieCore.h"
 #include "Core/Multithreading.h"
 
@@ -73,7 +74,7 @@ int Smoothie::DefaultBuffer::create()
 		return 1;
 	}
 
-	auto& commandBuffer = beginSingleTimeCommands();
+	auto commandBuffer = beginSingleTimeCommands();
 	vkCmdFillBuffer(commandBuffer.buffer, buffer, 0, VK_WHOLE_SIZE, 0);
 	endSingleTimeCommands(commandBuffer);
 

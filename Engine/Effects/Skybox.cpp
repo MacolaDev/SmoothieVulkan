@@ -287,7 +287,7 @@ int Smoothie::DeferredRendering::SkyboxCubemapTexture::create_from_hdri_image(co
 
 	
 	//******************************** Transfer data to the GPU **********************************//
-	auto& commands = beginSingleTimeCommands();
+	auto commands = beginSingleTimeCommands();
 	VkImageMemoryBarrier _barrier = {};
 	_barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
 	_barrier.pNext = nullptr;
@@ -528,7 +528,7 @@ int Smoothie::DeferredRendering::SkyboxCubemapTexture::create_from_hdri_image(co
 
 
 	//******************************** Draw **********************************//
-	auto& commandBuffer = beginSingleTimeCommands();
+	auto commandBuffer = beginSingleTimeCommands();
 
 	VkImageMemoryBarrier cubemapTransferDST{};
 	cubemapTransferDST.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;

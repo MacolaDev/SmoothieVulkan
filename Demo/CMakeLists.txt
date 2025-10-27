@@ -14,7 +14,6 @@ target_include_directories(Demo PRIVATE ${CMAKE_SOURCE_DIR}/Engine)
 target_include_directories(Demo PRIVATE ${CMAKE_SOURCE_DIR}/include/VulkanMemoryAllocator/include)
 target_include_directories(Demo PRIVATE ${CMAKE_SOURCE_DIR}/include/stb)
 target_include_directories(Demo PRIVATE ${Vulkan_INCLUDE_DIR})
-
 target_link_libraries(Demo PRIVATE Vulkan::Vulkan)
 target_link_libraries(Demo PRIVATE glfw)
 target_link_libraries(Demo PRIVATE SmoothieEngine)

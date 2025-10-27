@@ -63,7 +63,7 @@ int Smoothie::DeferredRendering::Drawing::create_present_pipeline()
 {
 	std::array<VkImageView, 2> images =
 	{
-		HDRPass.HDR.getImageView(),
+		hdrPass.HDR.getImageView(),
 		bloom.getFinalImage()
 	};
 	
@@ -229,15 +229,15 @@ int Smoothie::DeferredRendering::Drawing::create()
 		return 1;
 	}
 
-	HDRPass.gDepth = gBuffer_Pass.gDepth;
+	hdrPass.gDepth = gBuffer_Pass.gDepth;
 
-	if (HDRPass.create() != 0)
+	if (hdrPass.create() != 0)
 	{
 		std::cout << "Failed to create HDR pass!" << std::endl;
 		return 1;
 	}
 
-	lighting_renderPass.target = HDRPass.HDR;
+	lighting_renderPass.target = hdrPass.HDR;
 	if (lighting_renderPass.create() != 0)
 	{
 		std::cout << "Failed to create lighting render pass!" << std::endl;
@@ -261,7 +261,7 @@ int Smoothie::DeferredRendering::Drawing::create()
 		std::cout << "Failed to create skybox image!" << std::endl;
 		return 1;
 	}
-	if (skyboxTexture.create_from_hdri_image("resources\\DemoScene\\glencairn_expressway_4k.hdr") != 0)
+	if (skyboxTexture.create_from_hdri_image("resources/DemoScene/glencairn_expressway_4k.hdr") != 0)
 	{
 
 		return 1;
@@ -294,7 +294,7 @@ int Smoothie::DeferredRendering::Drawing::create()
 	lighting_global.IrradiancePrefilter_DescriptorSet = indirect_lighting_maps.getDescriptorSet();
 	lighting_global.IrradiancePrefilter_DescriptorSetLayout = indirect_lighting_maps.getDescriptorSetLayout();
 	lighting_global.DrawClassSetLayout = getDescriptorSetLayout(0);
-	lighting_global.renderPass = HDRPass.get_render_pass();
+	lighting_global.renderPass = hdrPass.get_render_pass();
 	lighting_global.vertexShader = getSystemShaderModule("SYSTEM");
 	lighting_global.globalIlluminationModule = getSystemShaderModule("GLOBAL_ILLUMINATION");
 	if (lighting_global.create() != 0)
@@ -305,7 +305,7 @@ int Smoothie::DeferredRendering::Drawing::create()
 	
 	skybox.HDRCubemap_descriptorSet = skyboxTexture.getDescriptorSet();
 	skybox.HDRCubemap_descriptorSetLayout = skyboxTexture.getDescriptorSetLayout();
-	skybox.renderPass = HDRPass.get_render_pass();
+	skybox.renderPass = hdrPass.get_render_pass();
 	skybox.drawerClassDescriptorSetLayout = getDescriptorSetLayout(0);
 	skybox.skyboxVertex = getSystemShaderModule("SKYBOX_VERTEX");
 	skybox.skyboxFragment = getSystemShaderModule("SKYBOX_FRAGMENT");
@@ -315,8 +315,8 @@ int Smoothie::DeferredRendering::Drawing::create()
 		return 1;
 	}
 
-	bloom.HDRImageView = HDRPass.HDR.getImageView();
-	bloom.HDRImage = HDRPass.HDR.getImage();
+	bloom.HDRImageView = hdrPass.HDR.getImageView();
+	bloom.HDRImage = hdrPass.HDR.getImage();
 	bloom.ClampToEdgeLINEAR = getSampler("ClampToEdgeLINEAR");
 	bloom.vertexShader = getSystemShaderModule("SYSTEM");
 	bloom.higlightModule = getSystemShaderModule("BLOOM_HIGLIGHTS");
@@ -358,14 +358,14 @@ void Smoothie::DeferredRendering::Drawing::draw(VkCommandBuffer commandBuffer, u
 	ssao.draw(commandBuffer, descriptorSet, currentFrame);
 	
 	//HDR pass
-	HDRPass.bindPass(commandBuffer, currentFrame);
+	hdrPass.bindPass(commandBuffer, currentFrame);
 	lighting_global.draw(commandBuffer, descriptorSet, currentFrame);
 	skybox.draw(commandBuffer, descriptorSet, currentFrame);
 	for (const auto& [key, pipe] : HDRPipelines)
 	{
 		if (pipe != nullptr) pipe->bindAndDraw(commandBuffer, descriptorSet, currentFrame);
 	}
-	HDRPass.unbindPass(commandBuffer, currentFrame);
+	hdrPass.unbindPass(commandBuffer, currentFrame);
 
 	//Post processing effects
 	bloom.draw(commandBuffer, descriptorSet, currentFrame);
@@ -412,14 +412,14 @@ int Smoothie::DeferredRendering::Drawing::resize_callback()
 		return 1;
 	}
 
-	HDRPass.gDepth = gBuffer_Pass.gDepth;
-	if (HDRPass.resize_callback() != 0)
+	hdrPass.gDepth = gBuffer_Pass.gDepth;
+	if (hdrPass.resize_callback() != 0)
 	{
 		std::cout << "Failed to resize HDR pass!" << std::endl;
 		return 1;
 	}
 
-	lighting_renderPass.target = HDRPass.HDR;
+	lighting_renderPass.target = hdrPass.HDR;
 	if (lighting_renderPass.resize_callback() != 0)
 	{
 		std::cout << "Failed to resize lighting render pass!" << std::endl;
@@ -434,8 +434,8 @@ int Smoothie::DeferredRendering::Drawing::resize_callback()
 		return 1;
 	}
 
-	bloom.HDRImageView = HDRPass.HDR.getImageView();
-	bloom.HDRImage = HDRPass.HDR.getImage();
+	bloom.HDRImageView = hdrPass.HDR.getImageView();
+	bloom.HDRImage = hdrPass.HDR.getImage();
 	if (bloom.resize_callback() != 0)
 	{
 		std::cout << "Failed to resize bloom effect!" << std::endl;
@@ -445,7 +445,7 @@ int Smoothie::DeferredRendering::Drawing::resize_callback()
 	//Update last render pass
 	std::array<VkImageView, 2> images =
 	{
-		HDRPass.HDR.getImageView(),
+		hdrPass.HDR.getImageView(),
 		bloom.getFinalImage()
 	};
 
@@ -495,7 +495,7 @@ void Smoothie::DeferredRendering::Drawing::destroy()
 	skyboxTexture.destroy();
 	brdf.destroy();
 	lighting_renderPass.destroy();
-	HDRPass.destroy();
+	hdrPass.destroy();
 	gBuffer_Pass.destroy();
 
 	for (size_t i = 0; i < descriptors.size(); i++)

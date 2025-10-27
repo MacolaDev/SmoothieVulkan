@@ -1,6 +1,6 @@
 #include "DeferredBuffer.h"
 #include "Core/SmoothieCore.h"
-
+#include <cstring>
 int Smoothie::DeferredRendering::UniformBuffer_Base::create()
 {
 	return 0;

@@ -45,7 +45,7 @@ PyObject* calculate_uv_data(PyObject* self, PyObject* args)
 	//Checking if lists match data
 	if ((2 * PyList_Size(indexes_list)) != PyList_Size(data_list)) 
 	{
-		std::cout << __FUNCTION__": List's Length dont match!" << std::endl;
+		std::cout << "List's Length dont match!" << std::endl;
 		std::cout << PyList_Size(indexes_list) << " " << PyList_Size(data_list) << std::endl;
 		return Py_None;
 	}

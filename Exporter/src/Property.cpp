@@ -2,6 +2,7 @@
 #include "imgui.h"
 #include <iostream>
 #include <sstream>
+#include <cstdint>
 
 using namespace Smoothie::XML;
 

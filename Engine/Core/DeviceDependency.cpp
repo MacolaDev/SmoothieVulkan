@@ -29,6 +29,6 @@ void DeviceDependencies::getDendepndenciesFromDevice(VkPhysicalDevice physicalDe
 	}
 	if (depthFormat == VK_FORMAT_UNDEFINED)
 	{
-		std::cout << __FUNCTION__": Currently selected GPU does not support any valid depth format!" << std::endl;
+		std::cout << "Currently selected GPU does not support any valid depth format!" << std::endl;
 	}
 }

@@ -20,3 +20,13 @@ Exporter/paths.txt
 include/glslang
 include/
 .idea/
+Testing/
+cmake-*
+Makefile
+lib/
+bin/imgui.ini
+bin/SmoothieEditor
+bin/ShaderCompiler
+bin/Demo
+.idea/vcs.xml
+Testing/Temporary/LastTest.log

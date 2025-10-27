@@ -4,12 +4,10 @@
 #include <iostream>
 #include <random>
 
-#include "Core/Shader.h"
 #include "Core/RenderPass.h"
 #include "Core/CameraDescriptor.h"
 #include "Core/Multithreading.h"
 
-#include "Effects/DeferredPasses.h"
 #include "Effects/DeferredPipeline.h"
 using namespace Smoothie;
 
@@ -76,7 +74,7 @@ int SmoothieCore::initEngine
 (
 	std::shared_ptr<Smoothie::SmoothieCore_Initialization>& initInfo, 
 	unsigned int windowWidth, unsigned windowHeight,
-	std::shared_ptr<Smoothie::Scene_Default>& scene_loader,
+	std::shared_ptr<Smoothie::Scene_Default> scene_loader,
 	std::shared_ptr<Smoothie::Drawing_Base> drawingClass
 )
 {
@@ -223,15 +221,6 @@ int SmoothieCore::initEngine
 	return 0;
 }
 
-static void destroy_system_shaders(std::unordered_map<std::string, VkShaderModule>& shaders)
-{
-	for (auto& [key, value] : shaders) 
-	{
-		vkDestroyShaderModule(SmoothieCore::getDevice(), value, nullptr);
-		value = nullptr;
-	}
-}
-
 int SmoothieCore::finitEngine()
 {
 	removeScene();
@@ -364,7 +353,7 @@ unsigned int SmoothieCore::generate_random_key()
 
 std::array<VkCommandBuffer, SMOOTHIE_MAX_FRAMES_IN_FLIGHT> SmoothieCore::renderCommandBuffers;
 std::array<VkSemaphore, SMOOTHIE_MAX_FRAMES_IN_FLIGHT> SmoothieCore::imageAvailableSemaphores;
-std::array<VkSemaphore, SMOOTHIE_MAX_FRAMES_IN_FLIGHT> SmoothieCore::renderFinishedSemaphores;
+std::vector<VkSemaphore> SmoothieCore::renderFinishedSemaphores;
 std::array<VkFence, SMOOTHIE_MAX_FRAMES_IN_FLIGHT> SmoothieCore::inFlightFences;
 
 std::vector<VkFramebuffer> SmoothieCore::swapchainFramebuffers;
@@ -400,6 +389,12 @@ int SmoothieCore::create_renderer()
 		{
 			return 1;
 		}
+
+	}
+
+	renderFinishedSemaphores.resize(swapchainImages.size());
+	for (unsigned int i = 0; i < swapchainImages.size(); i++)
+	{
 		if (vkCreateSemaphore(SmoothieCore::getDevice(), &semaphoreInfo, nullptr, &renderFinishedSemaphores[i]) != VK_SUCCESS)
 		{
 			return 1;
@@ -430,32 +425,38 @@ int SmoothieCore::destroy_renderer()
 		vkDestroyFence(SmoothieCore::getDevice(), inFlightFences[i], nullptr);
 		inFlightFences[i] = nullptr;
 
-		vkDestroySemaphore(SmoothieCore::getDevice(), renderFinishedSemaphores[i], nullptr);
-		renderFinishedSemaphores[i] = nullptr;
-
 		vkDestroySemaphore(SmoothieCore::getDevice(), imageAvailableSemaphores[i], nullptr);
 		imageAvailableSemaphores[i] = nullptr;
 	}
+
+	for (unsigned int i = 0; i < renderFinishedSemaphores.size(); i++)
+	{
+		vkDestroySemaphore(SmoothieCore::getDevice(), renderFinishedSemaphores[i], nullptr);
+		renderFinishedSemaphores[i] = nullptr;
+	}
+
+
 	return 0;
 }
 
 void SmoothieCore::draw()
 {
-	if ((scene.get() == nullptr) || (isEngineReady == false)) return;
+	if ((scene == nullptr) || (isEngineReady == false)) return;
 	
-
+	//std::clock_t start = std::clock();
 	vkWaitForFences(SmoothieCore::getDevice(), 1, &inFlightFences[currentFrame], VK_TRUE, UINT64_MAX);
 	vkResetFences(SmoothieCore::getDevice(), 1, &inFlightFences[currentFrame]);
 
+
 	uint32_t imageIndex = 0;
 	vkAcquireNextImageKHR(SmoothieCore::getDevice(), getSwapchain(), UINT64_MAX, imageAvailableSemaphores[currentFrame], VK_NULL_HANDLE, &imageIndex);
+
 
 	vkResetCommandBuffer(renderCommandBuffers[currentFrame], 0);
 
 	VkCommandBufferBeginInfo commandBufferBeginInfo{};
 	commandBufferBeginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
 	commandBufferBeginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-
 	vkBeginCommandBuffer(renderCommandBuffers[currentFrame], &commandBufferBeginInfo);
 	if(drawerClass != nullptr) drawerClass->draw(renderCommandBuffers[currentFrame], imageIndex);
 	vkEndCommandBuffer(renderCommandBuffers[currentFrame]);
@@ -464,29 +465,29 @@ void SmoothieCore::draw()
 	submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 	submitInfo.waitSemaphoreCount = 1;
 	submitInfo.pWaitSemaphores = &imageAvailableSemaphores[currentFrame];
-
 	VkPipelineStageFlags waitStages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
 	submitInfo.pWaitDstStageMask = waitStages;
-
 	submitInfo.commandBufferCount = 1;
 	submitInfo.pCommandBuffers = &renderCommandBuffers[currentFrame];
 	submitInfo.signalSemaphoreCount = 1;
-	submitInfo.pSignalSemaphores = &renderFinishedSemaphores[currentFrame];
-
+	submitInfo.pSignalSemaphores = &renderFinishedSemaphores[imageIndex];
 	vkQueueSubmit(SmoothieCore::getGraphicsQueue(), 1, &submitInfo, inFlightFences[currentFrame]);
 
+
+	auto swapchain = getSwapchain();
 	VkPresentInfoKHR presentInfo{};
 	presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
 	presentInfo.waitSemaphoreCount = 1;
-	presentInfo.pWaitSemaphores = &renderFinishedSemaphores[currentFrame];
-
-	auto swapchain = getSwapchain();
+	presentInfo.pWaitSemaphores = &renderFinishedSemaphores[imageIndex];
 	presentInfo.swapchainCount = 1;
 	presentInfo.pSwapchains = &swapchain;
 	presentInfo.pImageIndices = &imageIndex;
-
-
 	vkQueuePresentKHR(SmoothieCore::getPresentQueue(), &presentInfo);
+
+	// std::clock_t end = std::clock();
+	// double cpu_time = 1000.0 * (end - start) / CLOCKS_PER_SEC;
+	// std::cout << "CPU time: " << cpu_time << " ms\n";
+
 	MultithreadSubmissions::submitGraphicsQueue();
 	currentFrame = (currentFrame + 1) % SMOOTHIE_MAX_FRAMES_IN_FLIGHT;
 }

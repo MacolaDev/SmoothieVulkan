@@ -1,5 +1,6 @@
 #include "Vector3.h"
 #include <iostream>
+#include <cmath>
 
 using namespace SmoothieMath;
 void SmoothieMath::Vector3::setX(float value)

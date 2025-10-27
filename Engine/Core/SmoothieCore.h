@@ -75,7 +75,7 @@ public:
         unsigned int windowWidth,
         unsigned windowHeight,
 
-        std::shared_ptr<Smoothie::Scene_Default>& scene_loader = std::make_shared<Smoothie::Scene_Default>(),
+        std::shared_ptr<Smoothie::Scene_Default> scene_loader = std::make_shared<Smoothie::Scene_Default>(),
         std::shared_ptr<Smoothie::Drawing_Base> drawingClass = std::make_shared<Smoothie::DeferredRendering::Drawing>()
     );
     static int finitEngine();
@@ -155,7 +155,7 @@ private:
     SmoothieCore() = default;
     static std::array<VkCommandBuffer, SMOOTHIE_MAX_FRAMES_IN_FLIGHT> renderCommandBuffers;
     static std::array<VkSemaphore, SMOOTHIE_MAX_FRAMES_IN_FLIGHT> imageAvailableSemaphores;
-    static std::array<VkSemaphore, SMOOTHIE_MAX_FRAMES_IN_FLIGHT> renderFinishedSemaphores;
+    static std::vector<VkSemaphore> renderFinishedSemaphores;
     static std::array<VkFence, SMOOTHIE_MAX_FRAMES_IN_FLIGHT> inFlightFences;
     static unsigned int currentFrame;
 

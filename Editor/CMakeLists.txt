@@ -28,6 +28,10 @@ target_link_libraries(SmoothieEditor PRIVATE Vulkan::Vulkan)
 target_link_libraries(SmoothieEditor PRIVATE glfw)
 target_link_libraries(SmoothieEditor PRIVATE SmoothieEngine)
 
+if (UNIX AND NOT APPLE)
+    find_package(X11 REQUIRED)
+    target_link_libraries(SmoothieEditor PRIVATE ${X11_LIBRARIES})
+endif()
 
 #set_target_properties(
 #    SmoothieEditor PROPERTIES

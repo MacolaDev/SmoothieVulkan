@@ -338,8 +338,8 @@ int SmoothieEditor::RenderingManager::create_imgui_data()
 
 	data_getter.shader = getEditorShader("GPU_SELECTED_DATA");
 	data_getter.cameraDescriptorSetLayout = getDescriptorSetLayout(0);
-	data_getter.depthImage = HDRPass.gDepth.getImage();
-	data_getter.depthImageView = HDRPass.gDepth.getImageView();
+	data_getter.depthImage = hdrPass.gDepth.getImage();
+	data_getter.depthImageView = hdrPass.gDepth.getImageView();
 	data_getter.sampler = getSampler("Texture2DModelSampler");
 	if (data_getter.create() != 0)
 	{
@@ -388,14 +388,14 @@ void SmoothieEditor::RenderingManager::draw(VkCommandBuffer commandBuffer, unsig
 	ssao.draw(commandBuffer, descriptorSet, currentFrame);
 
 	//HDR pass
-	HDRPass.bindPass(commandBuffer, currentFrame);
+	hdrPass.bindPass(commandBuffer, currentFrame);
 	lighting_global.draw(commandBuffer, descriptorSet, currentFrame);
 	skybox.draw(commandBuffer, descriptorSet, currentFrame);
 	for (const auto& [key, pipe] : HDRPipelines)
 	{
 		if (pipe != nullptr) pipe->bindAndDraw(commandBuffer, descriptorSet, currentFrame);
 	}
-	HDRPass.unbindPass(commandBuffer, currentFrame);
+	hdrPass.unbindPass(commandBuffer, currentFrame);
 
 	//Post processing effects
 	bloom.draw(commandBuffer, descriptorSet, currentFrame);
@@ -588,7 +588,7 @@ int SmoothieEditor::RenderingManager::resize_callback()
 	swizzler.update_destination_image(resultImage, resultImageView);
 
 	update_swizzler(getCore().editor_window.camera_window.__selected_pass);
-	data_getter.update_depth_image(HDRPass.gDepth.getImage(), HDRPass.gDepth.getImageView());
+	data_getter.update_depth_image(hdrPass.gDepth.getImage(), hdrPass.gDepth.getImageView());
 	return 0;
 }
 

@@ -1,5 +1,11 @@
 #include "Demo.h"
 #include <set>
+#include <cmath>
+
+#ifndef NDEBUG
+    #define __USE_VALIDATION_LAYERS
+#endif
+
 
 using namespace SmoothieMath;
 constexpr float apsect_ratio = static_cast<float>(1280.0f / 720.0f);
@@ -118,7 +124,6 @@ void FreeCamera::resolutionUpdate(int width, int height)
     SmoothieCore::updateCameraData(freeCamera);
 }
 
-
 static VkResult CreateDebugUtilsMessengerEXT(
     VkInstance instance,
     const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo,
@@ -143,10 +148,11 @@ static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
     const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
     void* pUserData)
 {
-    std::string msg = pCallbackData->pMessage;
-    std::cout << "\nSmoothie: Vulkan: \n" << msg << std::endl;
-    if (messageSeverity >= VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT)
+    const std::string msg = pCallbackData->pMessage;
+    //std::cout << "\nSmoothie: Vulkan: \n" << msg << std::endl;
+    if (messageSeverity >= VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT)
     {
+        std::cout << msg << std::endl;
     }
     return VK_FALSE;
 }
@@ -168,7 +174,7 @@ int SmoothieEngineInitInfo::create_instance(VkInstance& instance)
     createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
     createInfo.pApplicationInfo = &appInfo;
 
-#ifdef _DEBUG
+#ifdef __USE_VALIDATION_LAYERS
     const std::vector<const char*> SMOOTHIE_VALIDATION_LAYERS = {"VK_LAYER_KHRONOS_validation"};
     createInfo.enabledLayerCount = static_cast<unsigned int>(SMOOTHIE_VALIDATION_LAYERS.size());
     createInfo.ppEnabledLayerNames = SMOOTHIE_VALIDATION_LAYERS.data();
@@ -183,42 +189,40 @@ int SmoothieEngineInitInfo::create_instance(VkInstance& instance)
     const char** glfwExtensions;
     glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
     std::vector<const char*> extensions(glfwExtensions, glfwExtensions + glfwExtensionCount);
+#ifdef __USE_VALIDATION_LAYERS
     extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
-    extensions.push_back(VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME);
+#endif
+    //extensions.push_back(VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME);
 
     createInfo.pNext = nullptr;
     createInfo.enabledExtensionCount = static_cast<unsigned int>(extensions.size());
     createInfo.ppEnabledExtensionNames = extensions.data();
 
-    if (vkCreateInstance(&createInfo, nullptr, &instance) != VK_SUCCESS)
+    if (VkResult result = vkCreateInstance(&createInfo, nullptr, &instance); result != VK_SUCCESS)
     {
-
+        std::cout << "Failed to create vulkan instance!, return code: " << result << std::endl;
         return 1;
     }
-
-
+#ifdef __USE_VALIDATION_LAYERS
     VkDebugUtilsMessengerCreateInfoEXT debugCreateInfo{};
-    debugCreateInfo.sType =
-        VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
-
-
+    debugCreateInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
     debugCreateInfo.messageSeverity =
-        VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT |
+        //VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT |
+        //VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT |
         VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT |
         VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
-
     debugCreateInfo.messageType =
         VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT |
         VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT |
         VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
-
     debugCreateInfo.pfnUserCallback = debugCallback;
-    
+
     if (CreateDebugUtilsMessengerEXT(instance, &debugCreateInfo, nullptr, &debugMessanger) != VK_SUCCESS)
     {
+        std::cout << "Failed to create debug manager!" << std::endl;
         return 1;
     }
-
+#endif
     return 0;
 }
 
@@ -271,11 +275,15 @@ int SmoothieEngineInitInfo::select_physical_device(VkPhysicalDevice& physicalDev
     std::vector<VkPhysicalDevice> devices(deviceCount);
     if (vkEnumeratePhysicalDevices(SmoothieCore::getInstance(), &deviceCount, devices.data()) != VK_SUCCESS)
     {
-        std::cout << "No sutiable Vulkan device on this machine!" << std::endl;
+        std::cout << "No suitable Vulkan device on this machine!" << std::endl;
         return 1;
     }
-
     physicalDevice = devices[selected_device_index];
+
+    VkPhysicalDeviceProperties deviceProperties{};
+    vkGetPhysicalDeviceProperties(devices[selected_device_index], &deviceProperties);
+    std::cout << "Selected device: " << deviceProperties.deviceName << std::endl;
+
     return 0;
 }
 
@@ -475,7 +483,7 @@ int SmoothieEngineInitInfo::create_swapchain(VkSwapchainKHR& swapchain)
     extent.width = SmoothieCore::getScrWidth();
     extent.height = SmoothieCore::getScrHeight();
 
-    uint32_t imageCount = capabilities.minImageCount + 1;
+    uint32_t imageCount = capabilities.minImageCount + 2;
     if (capabilities.maxImageCount > 0 && imageCount > capabilities.maxImageCount)
     {
         imageCount = capabilities.maxImageCount;

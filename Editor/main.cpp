@@ -6,6 +6,7 @@
 #include "backends/imgui_impl_glfw.h"
 #include "EditorCore/RenderingManager.h"
 #include "EditorCore/Core.h"
+#include "GLFW/glfw3.h"
 
 const unsigned int WINDOW_WIDTH = 1280;
 const unsigned int WINDOW_HEIGHT = 720;
@@ -135,7 +136,7 @@ int main()
 	__core.draw_manager->create_imgui_data();
 	SmoothieCore::loadScene("resources/DemoScene/Demo.sscene");
 
-	io.Fonts->AddFontFromFileTTF("Editor\\fonts\\Roboto-Medium.ttf", 16.0f);
+	io.Fonts->AddFontFromFileTTF("Editor/fonts/Roboto-Medium.ttf", 16.0f);
 	setup_colors();
 	SmoothieEditor::getCore().editor_window.camera.setCameraPosition({ -0.5, 3.0f, 18.0f });
 	SmoothieEditor::getCore().editor_window.camera.setCameraFront({ 0.0f, 0.0f, -1.0f });

@@ -1,1 +1,11 @@
-<model><geometryFile>resources\DemoScene\House\House.sgeometry</geometryFile><shader>shaders/pbr/pbr.sshader</shader><property><Texture>diffuse<value>resources\DemoScene\House\HouseDiffuse.png</value></Texture><Texture>normalMap<value>resources\DemoScene\House\HouseNormal.png</value></Texture><Texture>metalnessMap<value>resources\DemoScene\House\HouseMetalness.png</value></Texture><Texture>roughnessMap<value>resources\DemoScene\House\HouseRoughness.png</value></Texture><Bool>doubleSided<value>false</value></Bool><Bool>useAlpha<value>false</value></Bool></property><BoundingBox><min>6.4033 -7.6208 -0.016</min><max>-6.0345 7.0293 6.7371</max></BoundingBox></model>
+<model>
+<geometryFile>resources/DemoScene/House/House.sgeometry</geometryFile>
+<shader>shaders/pbr/pbr.sshader</shader>
+<property>
+<Texture>diffuse<value>resources/DemoScene/House/HouseDiffuse.png</value></Texture>
+<Texture>normalMap<value>resources/DemoScene/House/HouseNormal.png</value></Texture>
+<Texture>metalnessMap<value>resources/DemoScene/House/HouseMetalness.png</value></Texture>
+<Texture>roughnessMap<value>resources/DemoScene/House/HouseRoughness.png</value></Texture>
+<Bool>doubleSided<value>false</value></Bool>
+<Bool>useAlpha<value>false</value></Bool>
+</property><BoundingBox><min>6.4033 -7.6208 -0.016</min><max>-6.0345 7.0293 6.7371</max></BoundingBox></model>

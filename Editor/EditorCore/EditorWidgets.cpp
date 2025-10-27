@@ -5,6 +5,7 @@
 
 #include <iostream>
 #include <array>
+#include <algorithm>
 
 void SmoothieEditor::Window_Editor::on_draw_time(VkCommandBuffer commandBuffer, unsigned int current_frame)
 {
@@ -40,11 +41,11 @@ void SmoothieEditor::Window_Editor::on_draw_time(VkCommandBuffer commandBuffer, 
 	if (isMouseInsideWindow && (_middleMouseActive))
 	{
 		float speed = camera_window.speed * deltaTime;
-		auto& _pos_vec = camera.getCameraPosition();
+		auto _pos_vec = camera.getCameraPosition();
 
 		const auto& _front_vec = camera.getCameraFront();
 		const auto& _up_vec = camera.getCameraUp();
-		auto& _right_vec = SmoothieMath::cross(_front_vec, _up_vec);
+		auto _right_vec = SmoothieMath::cross(_front_vec, _up_vec);
 
 		if (ImGui::IsKeyDown(ImGuiKey_W))
 			_pos_vec += _front_vec * speed;

@@ -1,5 +1,5 @@
 <model>
-  <geometryFile>resources\DemoScene\Tree\Tree.sgeometry</geometryFile>
+  <geometryFile>resources/DemoScene/Tree/Tree.sgeometry</geometryFile>
   <shader>shaders/pbr/treeItPBR.sshader</shader>
   <property/>
   <BoundingBox>

@@ -30,7 +30,7 @@ target_include_directories(Exporter PRIVATE ${CMAKE_SOURCE_DIR}/include/VulkanMe
 target_link_libraries(Exporter PRIVATE ${Python_LIBRARIES})
 target_link_libraries(Exporter PRIVATE SmoothieEngine)
 target_link_libraries(Exporter PRIVATE glfw)
-target_link_libraries(Exporter PRIVATE opengl32)
+target_link_libraries(Exporter PRIVATE OpenGL::GL)
 target_link_libraries(Exporter PRIVATE Vulkan::Vulkan)
 
 set_target_properties(Exporter PROPERTIES SUFFIX ".pyd")

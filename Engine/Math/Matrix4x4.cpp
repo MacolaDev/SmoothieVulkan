@@ -2,7 +2,7 @@
 #include "Matrix3x3.h"
 #include "SmoothieMath.h"
 #include <iostream>
-
+#include <cmath>
 using namespace SmoothieMath;
 
 Matrix4x4::Matrix4x4( const Vector4& row0, const Vector4& row1, const Vector4& row2, const Vector4& row3)

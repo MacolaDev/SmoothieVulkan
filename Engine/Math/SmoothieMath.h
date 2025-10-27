@@ -1,4 +1,5 @@
 #pragma once
+#include <cmath>
 #include "Vector4.h"
 #include "Vector3.h"
 #include "Matrix4x4.h"

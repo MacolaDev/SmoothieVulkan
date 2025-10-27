@@ -3,6 +3,7 @@
 #include "DeferredPipeline.h"
 #include "Effects/Deferred_Core.h"
 #include "Core/Image.h"
+#include <cstring>
 
 using namespace Smoothie::DeferredRendering;
 

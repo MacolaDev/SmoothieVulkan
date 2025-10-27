@@ -6,13 +6,6 @@
 #include <iostream>
 using namespace glslang;
 
-
-TShader::Includer::IncludeResult* SmoothieIncluder::includeSystem(const char* headerName, const char* includerName, size_t inclusionDepth)
-{
-	std::cout << __FUNCTION__": Not yet implemented :D" << std::endl;
-	return nullptr;
-}
-
 static void getIncludeDepthAndFileName(const std::string& headerFile, unsigned int& depth, std::string& fileNameAndFolder)
 {
 	size_t includeDepth = 0;
@@ -75,6 +68,27 @@ static void readDataFromFile(std::string& dataFromFile, const std::string& filep
 	file.close();
 }
 
+TShader::Includer::IncludeResult* SmoothieIncluder::includeSystem(const char* headerName, const char* includerName, size_t inclusionDepth)
+{
+	std::string fileName;
+	unsigned int includeDepth = 0;
+	getIncludeDepthAndFileName(headerName, includeDepth,fileName);
+	if ("" == fileName) return nullptr;
+
+	std::string includeFileFolder = getRootFolderOfIncludedFile(includeDepth);
+	if ("" == includeFileFolder) return nullptr;
+
+
+	headerFileName = includeFileFolder + "/" + fileName;
+	if (std::filesystem::exists(headerFileName))
+	{
+		readDataFromFile(dataFromFile, headerFileName);
+
+		return new IncludeResult(headerFileName, dataFromFile.c_str(), dataFromFile.size(), nullptr);;
+	}
+	return nullptr;
+}
+
 TShader::Includer::IncludeResult* SmoothieIncluder::includeLocal(const char* headerName, const char* includerName, size_t inclusionDepth)
 {
 
@@ -86,7 +100,7 @@ TShader::Includer::IncludeResult* SmoothieIncluder::includeLocal(const char* hea
 	std::string includeFileFolder = getRootFolderOfIncludedFile(includeDepth);
 	if ("" == includeFileFolder) return nullptr;
 	
-	headerFileName = includeFileFolder + "\\" + fileName;
+	headerFileName = includeFileFolder + "/" + fileName;
 	if (std::filesystem::exists(headerFileName))
 	{
 		readDataFromFile(dataFromFile, headerFileName);

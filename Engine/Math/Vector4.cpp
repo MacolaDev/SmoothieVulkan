@@ -1,5 +1,6 @@
 #include "Vector4.h"
 #include "iostream"
+#include <cmath>
 
 using namespace SmoothieMath;
 Vector4::Vector4(float x, float y, float z, float w)

@@ -78,7 +78,7 @@ static int load_icon(const std::string& path, VkImage& image, VkImageView& image
 	}
 
 	
-	auto& commandBuffer = beginSingleTimeCommands();
+	auto commandBuffer = beginSingleTimeCommands();
 
 	VkImageMemoryBarrier __barrier{};
 	__barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
@@ -166,14 +166,14 @@ void SmoothieEditor::Icon::destroy()
 
 int SmoothieEditor::Icons::create()
 {
-    std::string path = "Editor\\icons\\camera_icon.png";
+    std::string path = "Editor/icons/camera_icon.png";
     if (camera_icon.create(path) != 0)
     {
         std::cout << "Failed to load " << path << " icon!" << std::endl;
         return 1;
     }
 
-	path = "Editor\\icons\\object_select_icon.png";
+	path = "Editor/icons/object_select_icon.png";
 	if (object_select_icon.create(path) != 0)
 	{
 		std::cout << "Failed to load " << path << " icon!" << std::endl;

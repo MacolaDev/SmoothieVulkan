@@ -107,12 +107,12 @@ int Smoothie::DescriptorSetData::create(const ShaderFile& shaderFile, unsigned i
 		}
 		__pool_sizes_per_type[__descriptor_type] += __num_of_elements;
 
-		VkDescriptorSetLayoutBinding __binding = {};
-		__binding.binding = __reflection.binding;
-		__binding.descriptorCount = __num_of_elements;
-		__binding.descriptorType = __descriptor_type;
-		__binding.stageFlags = __reflection.stages;
-		m_LayoutBindings.push_back(__binding);
+		VkDescriptorSetLayoutBinding __descriptor_binding = {};
+		__descriptor_binding.binding = __reflection.binding;
+		__descriptor_binding.descriptorCount = __num_of_elements;
+		__descriptor_binding.descriptorType = __descriptor_type;
+		__descriptor_binding.stageFlags = __reflection.stages;
+		m_LayoutBindings.push_back(__descriptor_binding);
 	}
 
 	for (const auto& [__type, __count]: __pool_sizes_per_type)

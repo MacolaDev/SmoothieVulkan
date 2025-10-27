@@ -5,11 +5,13 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+
 find_package(Vulkan REQUIRED)
 find_package(Python3 REQUIRED)
+find_package(OpenGL REQUIRED)
 
 add_subdirectory(include/glfw)
-
 
 set(ENABLE_OPT 0)
 #add_subdirectory(include/SPIRV-Tools)
