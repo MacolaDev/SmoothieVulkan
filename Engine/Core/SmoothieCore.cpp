@@ -1,4 +1,6 @@
 #include "SmoothieCore.h"
+
+#include <cassert>
 #include <vulkan/vulkan.h>
 
 #include <iostream>
@@ -8,7 +10,7 @@
 #include "Core/CameraDescriptor.h"
 #include "Core/Multithreading.h"
 
-#include "Effects/DeferredPipeline.h"
+#include "Effects/Deferred_Pipeline.h"
 using namespace Smoothie;
 
 bool SmoothieCore::isEngineReady = false;
@@ -27,7 +29,7 @@ VkSwapchainKHR SmoothieCore::swapchain = nullptr;
 std::vector<VkImage> SmoothieCore::swapchainImages;
 std::vector<VkImageView> SmoothieCore::swapchainImageViews;
 
-std::shared_ptr<Smoothie::Scene_Default> SmoothieCore::scene = nullptr;
+std::shared_ptr<Smoothie::Scene_Base> SmoothieCore::scene = nullptr;
 std::shared_ptr<Smoothie::SmoothieCore_Initialization> SmoothieCore::init_info = nullptr;
 
 VkInstance SmoothieCore::instance = nullptr;
@@ -69,12 +71,13 @@ std::vector<CameraDescriptorSet> SmoothieCore::cameraDescriptorSets;
 Smoothie::DefaultTexture2D SmoothieCore::default2dTexture;
 Smoothie::DefaultBuffer SmoothieCore::defaultBuffer;
 std::shared_ptr<Smoothie::Drawing_Base> SmoothieCore::drawerClass;
+std::string SmoothieCore::s_scene_file;
 
 int SmoothieCore::initEngine
 (
 	std::shared_ptr<Smoothie::SmoothieCore_Initialization>& initInfo, 
 	unsigned int windowWidth, unsigned windowHeight,
-	std::shared_ptr<Smoothie::Scene_Default> scene_loader,
+	std::shared_ptr<Smoothie::Scene_Base> scene_loader,
 	std::shared_ptr<Smoothie::Drawing_Base> drawingClass
 )
 {
@@ -83,7 +86,6 @@ int SmoothieCore::initEngine
 
 	init_info = initInfo;
 	SCR_WIDTH = windowWidth, SCR_HEIGHT = windowHeight;
-	MultithreadSubmissions::getRenderingThreadID();
 
 	if (initInfo.get() == nullptr)
 	{
@@ -216,16 +218,39 @@ int SmoothieCore::initEngine
 		return 1;
 	}
 
+	if (drawingClass->get_editor_corePtr() != nullptr)
+	{
+		if (drawingClass->get_editor_corePtr()->create() != 0)
+		{
+			std::cout << "Failed to create editor!" << std::endl;
+			return 1;
+		}
+	}
 
 	isEngineReady = true;
 	return 0;
 }
-
+std::queue<std::future<void>> SmoothieCore::s_PendingFutures;
 int SmoothieCore::finitEngine()
 {
+	while (!s_PendingFutures.empty())
+	{
+		s_PendingFutures.front().wait();
+		s_PendingFutures.pop();
+	}
+
 	removeScene();
-	
-	if (drawerClass != nullptr) drawerClass->destroy();
+	vkDeviceWaitIdle(SmoothieCore::getDevice());
+
+	if (drawerClass != nullptr)
+	{
+		if (drawerClass->get_editor_corePtr() != nullptr)
+		{
+			drawerClass->get_editor_corePtr()->destroy();
+		}
+
+		drawerClass->destroy();
+	}
 
 	destroy_renderer();
 
@@ -262,10 +287,17 @@ int SmoothieCore::finitEngine()
 static bool isSceneLoaded = false;
 int SmoothieCore::loadScene(const std::string& scene_file)
 {
+	while (!s_PendingFutures.empty())
+	{
+		s_PendingFutures.front().wait();
+		s_PendingFutures.pop();
+	}
+
+	s_scene_file = scene_file;
 	auto _scene = scene.get();
 	if ((_scene == nullptr) || (isEngineReady == false))
 	{
-		std::cout << "Can't load scene because engine is not initilized!" << std::endl;
+		std::cout << "Can't load scene because engine is not initialized!" << std::endl;
 		return 1;
 	}
 
@@ -275,14 +307,33 @@ int SmoothieCore::loadScene(const std::string& scene_file)
 		return 1;
 	}
 
-	return _scene->load_scene(scene_file);
+	const int err = _scene->load_scene(s_scene_file);
+
+	if (drawerClass->get_editor_core() != nullptr)
+	{
+		drawerClass->get_editor_core()->on_scene_load(s_scene_file + "_econf");
+	}
+
+	return err;
 }
 
 void SmoothieCore::removeScene()
 {
+	while (!s_PendingFutures.empty())
+	{
+		s_PendingFutures.front().wait();
+		s_PendingFutures.pop();
+	}
+
 	auto _scene = scene.get();
 	if ((_scene == nullptr) || (isEngineReady == false)) return;
-	_scene->clear_scene();
+
+	if (drawerClass != nullptr && drawerClass->get_editor_core() != nullptr)
+	{
+		drawerClass->get_editor_core()->on_scene_save(s_scene_file + "_econf");
+	}
+
+	_scene->_clear_scene();
 }
 
 void SmoothieCore::updateCameraData(const Smoothie::Camera& camera)
@@ -313,7 +364,7 @@ void SmoothieCore::updateRenderingResolution(unsigned int windowWidth, unsigned 
 
 		if (init_info->create_swapchain(swapchain) != 0)
 		{
-			std::cout << "Failed to create Swapchain!" << std::endl;
+			std::cout << "Failed to create swap-chain!" << std::endl;
 		}
 
 		if (init_info->create_default_renderpass(defaultRenderPass) != 0)
@@ -323,24 +374,46 @@ void SmoothieCore::updateRenderingResolution(unsigned int windowWidth, unsigned 
 
 		if (init_info->get_swapchain_images(swapchainImages))
 		{
-			std::cout << "Failed to get swapchain images!" << std::endl;
+			std::cout << "Failed to get swap-chain images!" << std::endl;
 		}
 
 		if (init_info->create_swapchain_image_views(swapchainImageViews))
 		{
-			std::cout << "Failed to create swapchain image views!" << std::endl;
+			std::cout << "Failed to create swap-chain image views!" << std::endl;
 		}
 
 		if (init_info->create_swapchain_framebuffers(swapchainFramebuffers) != 0)
 		{
-			std::cout << "Failed to create swapchain framebuffers" << std::endl;
+			std::cout << "Failed to create swap-chain framebuffers" << std::endl;
 		}
 
 		if (drawerClass->resize_callback() != 0)
 		{
 			isEngineReady = false;
 		}
+
+		if (drawerClass->get_editor_core() != nullptr)
+		{
+			if (drawerClass->get_editor_corePtr()->resize_callback() != 0) isEngineReady = false;
+		}
+
 	}
+}
+
+std::queue<Smoothie::QueuedSubmitInfo> SmoothieCore::s_PendingQueue;
+static std::mutex s_PendingQueueMutex;
+int SmoothieCore::SubmitToExecutionQueue(const Smoothie::QueuedSubmitInfo &submitInfo)
+{
+	std::lock_guard<std::mutex> lock(s_PendingQueueMutex);
+	s_PendingQueue.push(submitInfo);
+	return 0;
+}
+
+static std::mutex s_PendingFutures_Mutex;
+void SmoothieCore::Submit_ExecutionThread(std::future<void> future)
+{
+	std::lock_guard<std::mutex> _lock(s_PendingFutures_Mutex);
+	s_PendingFutures.push(std::move(future));
 }
 
 unsigned int SmoothieCore::generate_random_key()
@@ -442,16 +515,14 @@ int SmoothieCore::destroy_renderer()
 void SmoothieCore::draw()
 {
 	if ((scene == nullptr) || (isEngineReady == false)) return;
-	
-	//std::clock_t start = std::clock();
+
+	auto* __editor_core = drawerClass->get_editor_core();
+	if (__editor_core != nullptr) __editor_core->on_command_submit_time();
+
 	vkWaitForFences(SmoothieCore::getDevice(), 1, &inFlightFences[currentFrame], VK_TRUE, UINT64_MAX);
 	vkResetFences(SmoothieCore::getDevice(), 1, &inFlightFences[currentFrame]);
-
-
 	uint32_t imageIndex = 0;
 	vkAcquireNextImageKHR(SmoothieCore::getDevice(), getSwapchain(), UINT64_MAX, imageAvailableSemaphores[currentFrame], VK_NULL_HANDLE, &imageIndex);
-
-
 	vkResetCommandBuffer(renderCommandBuffers[currentFrame], 0);
 
 	VkCommandBufferBeginInfo commandBufferBeginInfo{};
@@ -459,6 +530,8 @@ void SmoothieCore::draw()
 	commandBufferBeginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
 	vkBeginCommandBuffer(renderCommandBuffers[currentFrame], &commandBufferBeginInfo);
 	if(drawerClass != nullptr) drawerClass->draw(renderCommandBuffers[currentFrame], imageIndex);
+
+	if (__editor_core != nullptr) __editor_core->on_command_record_time(renderCommandBuffers[currentFrame], imageIndex);
 	vkEndCommandBuffer(renderCommandBuffers[currentFrame]);
 
 	VkSubmitInfo submitInfo{};
@@ -473,7 +546,6 @@ void SmoothieCore::draw()
 	submitInfo.pSignalSemaphores = &renderFinishedSemaphores[imageIndex];
 	vkQueueSubmit(SmoothieCore::getGraphicsQueue(), 1, &submitInfo, inFlightFences[currentFrame]);
 
-
 	auto swapchain = getSwapchain();
 	VkPresentInfoKHR presentInfo{};
 	presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
@@ -484,11 +556,14 @@ void SmoothieCore::draw()
 	presentInfo.pImageIndices = &imageIndex;
 	vkQueuePresentKHR(SmoothieCore::getPresentQueue(), &presentInfo);
 
-	// std::clock_t end = std::clock();
-	// double cpu_time = 1000.0 * (end - start) / CLOCKS_PER_SEC;
-	// std::cout << "CPU time: " << cpu_time << " ms\n";
-
-	MultithreadSubmissions::submitGraphicsQueue();
+	if (!s_PendingQueue.empty())
+	{
+		const auto& _submission = s_PendingQueue.front();
+		assert(_submission.queue != nullptr);
+		vkQueueWaitIdle(_submission.queue);
+		vkQueueSubmit(_submission.queue, _submission.submitInfos.size(), _submission.submitInfos.data(), _submission.fence);
+		s_PendingQueue.pop();
+	}
 	currentFrame = (currentFrame + 1) % SMOOTHIE_MAX_FRAMES_IN_FLIGHT;
 }
 

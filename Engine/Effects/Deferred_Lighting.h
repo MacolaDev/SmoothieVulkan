@@ -83,9 +83,7 @@ namespace Smoothie
 
 		public:
 
-			VkShaderModule pbsVertexModule = nullptr;
-			VkShaderModule irradianceMapModule = nullptr;
-			VkShaderModule prefilterMapModule = nullptr;
+			VkShaderModule m_ShaderModule = nullptr;
 
 			virtual int create();
 			virtual int create_maps_from_skybox_cubemap(const DeferredRendering::SkyboxCubemapTexture& skyboxCubemap);

@@ -20,8 +20,8 @@ namespace Smoothie
 
 		public:
 			VkSampler Texture2DModelSampler = nullptr;
-			VkShaderModule pbsVertexShader = nullptr;
-			VkShaderModule fragmentShader = nullptr;
+			VkShaderModule m_FragmentShaderModule = nullptr;
+			VkShaderModule m_VertexShaderModule = nullptr;
 
 			int create();
 			//Creates cubemap texture from a hdri 
@@ -47,8 +47,7 @@ namespace Smoothie
 			VkRenderPass renderPass = nullptr;
 			VkDescriptorSetLayout drawerClassDescriptorSetLayout = nullptr;
 
-			VkShaderModule skyboxVertex = nullptr;
-			VkShaderModule skyboxFragment = nullptr;
+			VkShaderModule m_ShaderModule = nullptr;
 
 			int create();
 			void draw(VkCommandBuffer commandBuffer, VkDescriptorSet descriptorSet, unsigned int ImageID) const;

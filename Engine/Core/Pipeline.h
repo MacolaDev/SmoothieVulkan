@@ -9,35 +9,14 @@
 
 namespace Smoothie 
 {
-	//***************************************
-	//Base class for all pipeline models. 
-	//This should exist per-shader file.
-	//***************************************
 	class Pipeline_Base
 	{
-		unsigned int PipelineID = 0;
-		mutable unsigned int useCount = 0; 
-	protected:
-		VkPipeline pipeline = nullptr;
-		VkPipelineLayout pipeline_layout = nullptr;
-
-		inline void setID(unsigned int ID) { PipelineID = ID; }
-		inline unsigned int getUseCount() const { return useCount; }
-		inline void increaseUseCount() const { useCount++; }
-		inline void decreaseUseCount() const { useCount--; }
-
 	public:
-
-		virtual int create(const ShaderFile& shaderFile) = 0;
+		virtual int create() = 0;
+		virtual int update() = 0;
 		virtual void destroy() = 0;
 
-		inline unsigned int getID() const { return PipelineID; }
-		inline virtual int update() { return 0; }
-		
-		/*inline void setRenderPass(VkRenderPass renderPass) { this->renderPass = renderPass; }
-		inline VkRenderPass getRenderPass() const { return renderPass; }*/
-
-		Pipeline_Base() = default;
+		virtual ~Pipeline_Base() = default;
 	};
 
 	//**********************************************************

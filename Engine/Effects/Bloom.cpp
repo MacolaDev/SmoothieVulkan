@@ -2,6 +2,7 @@
 #include "Core/RenderPass.h"
 #include "Core/SmoothieCore.h"
 #include "Core/Pipeline.h"
+#include <iostream>
 
 #include "Effects/Deferred_Core.h"
 
@@ -221,15 +222,15 @@ int Smoothie::DeferredRendering::Bloom::create()
 
 	VkPipelineShaderStageCreateInfo vertexShaderPipelineCreateInfo{};
 	vertexShaderPipelineCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-	vertexShaderPipelineCreateInfo.pName = "main";
+	vertexShaderPipelineCreateInfo.pName = "vertex_QUAD";
 	vertexShaderPipelineCreateInfo.stage = VK_SHADER_STAGE_VERTEX_BIT;
 	vertexShaderPipelineCreateInfo.module = vertexShader;
 
 	VkPipelineShaderStageCreateInfo fragmentShaderPipelineCreateInfo{};
 	fragmentShaderPipelineCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-	fragmentShaderPipelineCreateInfo.pName = "main";
+	fragmentShaderPipelineCreateInfo.pName = "fragment_HIGLIGHTS";
 	fragmentShaderPipelineCreateInfo.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
-	fragmentShaderPipelineCreateInfo.module = higlightModule;
+	fragmentShaderPipelineCreateInfo.module = m_FragmentShader;
 
 
 	VkGraphicsPipelineCreateInfo _HiglightsPipelineInfo{};
@@ -268,7 +269,7 @@ int Smoothie::DeferredRendering::Bloom::create()
 		return 1;
 	}
 
-	fragmentShaderPipelineCreateInfo.module = downsampleModule;
+	fragmentShaderPipelineCreateInfo.pName = "fragment_DOWNSAMPLE";
 		
 	VkGraphicsPipelineCreateInfo _DownsamplePipelineInfo = _HiglightsPipelineInfo;
 	_DownsamplePipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
@@ -301,7 +302,7 @@ int Smoothie::DeferredRendering::Bloom::create()
 		return 1;
 	}
 
-	fragmentShaderPipelineCreateInfo.module = upsampleModule;
+	fragmentShaderPipelineCreateInfo.pName = "fragment_UPSAMPLE";
 
 	VkGraphicsPipelineCreateInfo _upsamplingPipelineInfo = _HiglightsPipelineInfo;
 	_upsamplingPipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
@@ -359,6 +360,10 @@ void Smoothie::DeferredRendering::Bloom::draw(VkCommandBuffer commandBuffer, VkD
 	viewport.minDepth = 0.0f;
 	viewport.maxDepth = 1.0f;
 	vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
+	VkRect2D scissor{};
+	scissor.offset = { 0, 0 };
+	scissor.extent = { mipChainData[0].width, mipChainData[0].height };
+	vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
 	vkCmdBeginRenderPass(commandBuffer, &beginInfo, VK_SUBPASS_CONTENTS_INLINE);
 	vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, higlightPipelineLayout, 0, 1, &mipChainData[0].dwnDescriptorSet, 0, nullptr);
 	vkCmdDraw(commandBuffer, 6, 1, 0, 0);

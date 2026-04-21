@@ -51,9 +51,7 @@ namespace Smoothie {
 			VkSampler ClampToEdgeLINEAR = nullptr;
 
 			VkShaderModule vertexShader = nullptr;
-			VkShaderModule higlightModule = nullptr;
-			VkShaderModule downsampleModule = nullptr;
-			VkShaderModule upsampleModule = nullptr;
+			VkShaderModule m_FragmentShader = nullptr;
 
 			int create() override;
 			void draw(VkCommandBuffer commandBuffer, VkDescriptorSet drawClassDescriptor, unsigned int ImageIndex) const override;

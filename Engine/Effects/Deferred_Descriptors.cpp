@@ -1,6 +1,6 @@
 #include "Deferred_Descriptors.h"
 #include "Core/SmoothieCore.h"
-
+#include <iostream>
 int Smoothie::DeferredRendering::Deferred_Descriptor_Buffer::create()
 {
 	VkBufferCreateInfo bufferCreateInfo{};
@@ -48,7 +48,7 @@ int Smoothie::DeferredRendering::Deferred_Descriptors::create()
 	poolInfo.poolSizeCount = 1;
 	poolInfo.pPoolSizes = &poolSize;
 	poolInfo.maxSets = 1;
-	if (vkCreateDescriptorPool(SmoothieCore::getDevice(), &poolInfo, nullptr, &descriptorPool) != VK_SUCCESS)
+	if (vkCreateDescriptorPool(SmoothieCore::getDevice(), &poolInfo, nullptr, &m_DescriptorPool) != VK_SUCCESS)
 	{
 		std::cout << "Failed to create descriptor pool!" << std::endl;
 		return 1;
@@ -65,7 +65,7 @@ int Smoothie::DeferredRendering::Deferred_Descriptors::create()
 	layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
 	layoutInfo.bindingCount = 1;
 	layoutInfo.pBindings = &layoutBinding;
-	if (vkCreateDescriptorSetLayout(SmoothieCore::getDevice(), &layoutInfo, nullptr, &descriptorSetLayout) != VK_SUCCESS)
+	if (vkCreateDescriptorSetLayout(SmoothieCore::getDevice(), &layoutInfo, nullptr, &m_DescriptorSetLayout) != VK_SUCCESS)
 	{
 		std::cout << "Failed to create descriptor set layout!" << std::endl;
 		return 1;
@@ -73,10 +73,10 @@ int Smoothie::DeferredRendering::Deferred_Descriptors::create()
 
 	VkDescriptorSetAllocateInfo descriptorSetAllocInfo{};
 	descriptorSetAllocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-	descriptorSetAllocInfo.descriptorPool = descriptorPool;
+	descriptorSetAllocInfo.descriptorPool = m_DescriptorPool;
 	descriptorSetAllocInfo.descriptorSetCount = 1;
-	descriptorSetAllocInfo.pSetLayouts = &descriptorSetLayout;
-	if (vkAllocateDescriptorSets(SmoothieCore::getDevice(), &descriptorSetAllocInfo, &descriptorSet) != VK_SUCCESS)
+	descriptorSetAllocInfo.pSetLayouts = &m_DescriptorSetLayout;
+	if (vkAllocateDescriptorSets(SmoothieCore::getDevice(), &descriptorSetAllocInfo, &m_DescriptorSet) != VK_SUCCESS)
 	{
 		std::cout << "Failed to allocate descriptor set!" << std::endl;
 		return 1;
@@ -88,7 +88,7 @@ int Smoothie::DeferredRendering::Deferred_Descriptors::create()
 	bufferInfo.range = VK_WHOLE_SIZE;
 	VkWriteDescriptorSet descriptorWrite{};
 	descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-	descriptorWrite.dstSet = descriptorSet;
+	descriptorWrite.dstSet = m_DescriptorSet;
 	descriptorWrite.dstArrayElement = 0;
 	descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
 	descriptorWrite.descriptorCount = 1;
@@ -102,11 +102,11 @@ int Smoothie::DeferredRendering::Deferred_Descriptors::create()
 
 void Smoothie::DeferredRendering::Deferred_Descriptors::destroy()
 {
-	vkDestroyDescriptorSetLayout(SmoothieCore::getDevice(), descriptorSetLayout, nullptr);
-	descriptorSetLayout = nullptr;
+	vkDestroyDescriptorSetLayout(SmoothieCore::getDevice(), m_DescriptorSetLayout, nullptr);
+	m_DescriptorSetLayout = nullptr;
 
-	vkDestroyDescriptorPool(SmoothieCore::getDevice(), descriptorPool, nullptr);
-	descriptorPool = nullptr, descriptorSet = nullptr;
+	vkDestroyDescriptorPool(SmoothieCore::getDevice(), m_DescriptorPool, nullptr);
+	m_DescriptorPool = nullptr, m_DescriptorSet = nullptr;
 
 	buffer.destroy();
 }

@@ -1,12 +1,11 @@
 #pragma once
 #include <vulkan/vulkan.h>
 #include <string>
-#include <ResourceManager/ResourceHandler.h>
 #include "vk_mem_alloc.h"
 
 namespace Smoothie 
 {
-	class Texture2D : public ResourceHandler<Texture2D>
+	class Texture2D
 	{
 	public:
 		

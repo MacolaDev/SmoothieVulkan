@@ -16,7 +16,7 @@ namespace Smoothie
 		};
 
 	
-		class Deferred_Descriptor_Buffer: public BufferBase
+		class Deferred_Descriptor_Buffer: public Buffer_Base
 		{
 		public:
 			int create() override;
@@ -27,7 +27,7 @@ namespace Smoothie
 		};
 
 
-		class Deferred_Descriptors: public DescriptorBase
+		class Deferred_Descriptors: public Descriptor_Base
 		{
 		protected:
 			Deferred_Descriptor_Buffer buffer;

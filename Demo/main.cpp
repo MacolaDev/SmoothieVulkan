@@ -6,6 +6,8 @@
 #include "Demo.h"
 #include <memory>
 
+#include "../include/glfw/include/GLFW/glfw3.h"
+
 const unsigned int WINDOW_WIDTH = 1280;
 const unsigned int WINDOW_HEIGHT = 720;
 
@@ -22,6 +24,11 @@ static void resizeCallback(GLFWwindow* window, int width, int height)
 	SmoothieCore::updateRenderingResolution(width, height);
 }
 
+static void glfwCallbackError(int error_code, const char* description)
+{
+	std::cout << "GLFW Error: " << error_code << ": " << description << std::endl;
+}
+
 int main()
 {
 
@@ -30,6 +37,8 @@ int main()
 		std::cout << "Can't initilize glfw!" << std::endl;
 		return -1;
 	}
+
+	glfwSetErrorCallback(glfwCallbackError);
 
 	glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
 	glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);

@@ -1,6 +1,6 @@
 #include "exporter.h"
 #include <filesystem>
-#include <ResourceManager/ShaderFile.h>
+//#include <ResourceManager/ShaderFile.h>
 
 PyObject* analyze_shader_file(PyObject* self, PyObject* args) 
 {

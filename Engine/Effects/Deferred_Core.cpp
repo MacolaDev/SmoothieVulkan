@@ -3,6 +3,7 @@
 #include <iostream>
 #include <mutex>
 #include <array>
+#include <assert.h>
 
 #include "Core/SmoothieCore.h"
 #include "Core/Constants.h"
@@ -142,15 +143,15 @@ int Smoothie::DeferredRendering::Drawing::create_present_pipeline()
 
 	VkPipelineShaderStageCreateInfo vertexShaderPipelineCreateInfo{};
 	vertexShaderPipelineCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-	vertexShaderPipelineCreateInfo.pName = "main";
+	vertexShaderPipelineCreateInfo.pName = "vertex_QUAD";
 	vertexShaderPipelineCreateInfo.stage = VK_SHADER_STAGE_VERTEX_BIT;
-	vertexShaderPipelineCreateInfo.module = getSystemShaderModule("SYSTEM");
+	vertexShaderPipelineCreateInfo.module = getSystemShaderModule("vertex_default");
 
 	VkPipelineShaderStageCreateInfo fragmentShaderPipelineCreateInfo{};
 	fragmentShaderPipelineCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-	fragmentShaderPipelineCreateInfo.pName = "main";
+	fragmentShaderPipelineCreateInfo.pName = "fragment_PRESENT";
 	fragmentShaderPipelineCreateInfo.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
-	fragmentShaderPipelineCreateInfo.module = getSystemShaderModule("PRESENT");
+	fragmentShaderPipelineCreateInfo.module = getSystemShaderModule("present");
 
 	const VkPipelineShaderStageCreateInfo stages[] = { vertexShaderPipelineCreateInfo, fragmentShaderPipelineCreateInfo };
 	VkGraphicsPipelineCreateInfo pipelineInfo{};
@@ -179,15 +180,31 @@ void Smoothie::DeferredRendering::Drawing::destroy_present_pipeline()
 	vkDestroyDescriptorSetLayout(SmoothieCore::getDevice(), presentDescriptorSetLayout, nullptr), presentDescriptorSetLayout = nullptr;
 }
 
-int Smoothie::DeferredRendering::Drawing::create_system_shaders(const std::vector<const char*>& __shader_files)
+int Smoothie::DeferredRendering::Drawing::create_system_shaders()
 {
-	for (size_t i = 0; i < __shader_files.size(); i++)
+	for (const auto& [name, shader]: m_InitInfo.system_shader_files)
 	{
-		if (Add_system_shader(__shader_files[i], system_shaders) != 0)
+		ShaderFile _shaderFile;
+		if (_shaderFile.create(shader, ShaderFile_CreateFlags::DontCreateModule | ShaderFile_CreateFlags::Hold_SPIR_V))
 		{
-			std::cout << "Failed to create shader module!" << std::endl;
+			std::cout << "Failed to create system shader file!" << std::endl;
 			return 1;
 		}
+		VkShaderModule _shaderModule = nullptr;
+		VkShaderModuleCreateInfo shaderModuleCreateInfo{};
+		shaderModuleCreateInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+		shaderModuleCreateInfo.codeSize = _shaderFile.get_SPIR_V_CODE().size() * sizeof(uint32_t);
+		assert(shaderModuleCreateInfo.codeSize != 0);
+		shaderModuleCreateInfo.pCode = _shaderFile.get_SPIR_V_CODE().data();
+		assert(shaderModuleCreateInfo.pCode != nullptr);
+		shaderModuleCreateInfo.pNext = nullptr;
+		shaderModuleCreateInfo.flags = 0;
+		if (vkCreateShaderModule(SmoothieCore::getDevice(), &shaderModuleCreateInfo, nullptr, &_shaderModule) != VK_SUCCESS)
+		{
+			std::cout << "Failed to create system shader module!" << std::endl;
+			return 1;
+		}
+		m_SystemShaders.insert({name, _shaderModule});
 	}
 
 	return 0;
@@ -195,18 +212,116 @@ int Smoothie::DeferredRendering::Drawing::create_system_shaders(const std::vecto
 
 void Smoothie::DeferredRendering::Drawing::destroy_system_shaders()
 {
-	for (auto& [key, value]: system_shaders)
+	for (auto& [key, value]: m_SystemShaders)
 	{
 		vkDestroyShaderModule(SmoothieCore::getDevice(), value, nullptr), value = nullptr;
 	}
-	system_shaders.clear();
+	m_SystemShaders.clear();
+}
+
+int DeferredRendering::Drawing::create_command_buffers()
+{
+
+	m_DrawingBuffers.resize(SMOOTHIE_MAX_FRAMES_IN_FLIGHT);
+	for (auto& _data: m_DrawingBuffers)
+	{
+		VkCommandPoolCreateInfo _poolCreateInfo{};
+		_poolCreateInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+		_poolCreateInfo.pNext = nullptr;
+		_poolCreateInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT | VK_COMMAND_POOL_CREATE_TRANSIENT_BIT;
+		_poolCreateInfo.queueFamilyIndex = SmoothieCore::getQueueFamilyGraphicsIndex();
+		if (vkCreateCommandPool(SmoothieCore::getDevice(), &_poolCreateInfo, nullptr, &_data.commandPool) != VK_SUCCESS)
+		{
+			std::cout << "Failed to create drawing command pool!" << std::endl;
+			return 1;
+		}
+
+		VkCommandBufferAllocateInfo _commandBufferAllocateInfo{};
+		_commandBufferAllocateInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+		_commandBufferAllocateInfo.commandPool = _data.commandPool;
+		_commandBufferAllocateInfo.level = VK_COMMAND_BUFFER_LEVEL_SECONDARY;
+
+		VkCommandBuffer _commandBuffers[] = {_data.commandBuffer_GBuffer, _data.commandBuffer_HDR, _data.commandBuffer_Shadow, _data.commandBuffer_Compute};
+		_commandBufferAllocateInfo.commandBufferCount = 4;
+		if (vkAllocateCommandBuffers(SmoothieCore::getDevice(), &_commandBufferAllocateInfo, _commandBuffers) != VK_SUCCESS)
+		{
+			std::cout << "Failed to allocate command buffers!" << std::endl;
+			return 1;
+		}
+		_data.commandBuffer_GBuffer = _commandBuffers[0];
+		_data.commandBuffer_HDR = _commandBuffers[1];
+		_data.commandBuffer_Shadow = _commandBuffers[2];
+		_data.commandBuffer_Compute = _commandBuffers[3];
+
+	}
+
+	return 0;
+}
+
+void DeferredRendering::Drawing::destroy_command_buffers()
+{
+	for (auto& _data: m_DrawingBuffers)
+	{
+		vkDestroyCommandPool(SmoothieCore::getDevice(), _data.commandPool, nullptr), _data.commandPool = nullptr;
+		_data.commandBuffer_GBuffer = nullptr;
+		_data.commandBuffer_HDR = nullptr;
+		_data.commandBuffer_Shadow = nullptr;
+		_data.commandBuffer_Compute = nullptr;
+
+	}
+}
+
+void DeferredRendering::Drawing::begin_command_buffers(unsigned int frame) const
+{
+	const auto& _data = m_DrawingBuffers[frame];
+
+	VkCommandBufferBeginInfo _beginInfo{};
+	_beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+	_beginInfo.pNext = nullptr;
+	_beginInfo.flags = VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT | VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+
+	VkCommandBufferInheritanceInfo _inheritanceInfo{};
+	_inheritanceInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_INHERITANCE_INFO;
+	_inheritanceInfo.pNext = nullptr;
+	_inheritanceInfo.subpass = 0;
+
+	_inheritanceInfo.framebuffer = gBuffer_Pass.get_framebuffer();
+	_inheritanceInfo.renderPass = gBuffer_Pass.get_render_pass();
+	_beginInfo.pInheritanceInfo = &_inheritanceInfo;
+	vkBeginCommandBuffer(_data.commandBuffer_GBuffer, &_beginInfo);
+
+	_inheritanceInfo.framebuffer = hdrPass.get_framebuffer();
+	_inheritanceInfo.renderPass = hdrPass.get_render_pass();
+	_beginInfo.pInheritanceInfo = &_inheritanceInfo;
+	vkBeginCommandBuffer(_data.commandBuffer_HDR, &_beginInfo);
+
+	//vkBeginCommandBuffer(m_commandBuffer_Shadow, &_beginInfo);
+
+	_beginInfo.flags = 0;
+	_beginInfo.pInheritanceInfo = &_inheritanceInfo;
+	vkBeginCommandBuffer(_data.commandBuffer_Compute, &_beginInfo);
+}
+
+void DeferredRendering::Drawing::end_command_buffers(unsigned int frame) const
+{
+	const auto& _data = m_DrawingBuffers[frame];
+	vkEndCommandBuffer(_data.commandBuffer_GBuffer);
+	vkEndCommandBuffer(_data.commandBuffer_HDR);
+	//vkEndCommandBuffer(m_commandBuffer_Shadow);
+	vkEndCommandBuffer(_data.commandBuffer_Compute);
 }
 
 int Smoothie::DeferredRendering::Drawing::create()
 {
+	if (create_command_buffers())
+	{
+		std::cout << "Failed to create draw command buffer data!" << std::endl;
+		return 1;
+	}
+
 	create_samplers();
 	descriptors.resize(SMOOTHIE_MAX_FRAMES_IN_FLIGHT);
-	if (create_system_shaders(__system_shader_files) != 0)
+	if (create_system_shaders() != 0)
 	{
 		std::cout << "Failed to create system shaders!" << std::endl;
 		return 1;
@@ -244,8 +359,8 @@ int Smoothie::DeferredRendering::Drawing::create()
 		return 1;
 	}
 	brdf.Texture2DModelSampler = getSampler("Texture2DModelSampler");
-	brdf.vertexShader = getSystemShaderModule("SYSTEM");
-	brdf.fragmentShader = getSystemShaderModule("BRDF");
+	brdf.vertexShader = getSystemShaderModule("vertex_default");
+	brdf.fragmentShader = getSystemShaderModule("pbs_maps");
 	if (brdf.create() != 0)
 	{
 		std::cout << "Failed to create BRDF LUT!" << std::endl;
@@ -253,9 +368,8 @@ int Smoothie::DeferredRendering::Drawing::create()
 	}
 
 	skyboxTexture.Texture2DModelSampler = getSampler("Texture2DModelSampler");
-	skyboxTexture.pbsVertexShader = getSystemShaderModule("PBS_VERTEX");
-	skyboxTexture.fragmentShader = getSystemShaderModule("HDR_TO_CUBEMAP");
-
+	skyboxTexture.m_FragmentShaderModule = getSystemShaderModule("hdr_to_cubemap");
+	skyboxTexture.m_VertexShaderModule = getSystemShaderModule("pbs_maps");
 	if (skyboxTexture.create() != 0)
 	{
 		std::cout << "Failed to create skybox image!" << std::endl;
@@ -268,9 +382,7 @@ int Smoothie::DeferredRendering::Drawing::create()
 	}
 
 	indirect_lighting_maps.Texture2DModelSampler = getSampler("Texture2DModelSampler");
-	indirect_lighting_maps.pbsVertexModule = getSystemShaderModule("PBS_VERTEX");
-	indirect_lighting_maps.irradianceMapModule = getSystemShaderModule("IRRADIANCE_MAP");
-	indirect_lighting_maps.prefilterMapModule = getSystemShaderModule("PREFILTER");
+	indirect_lighting_maps.m_ShaderModule = getSystemShaderModule("pbs_maps");
 
 	if (indirect_lighting_maps.create() != 0)
 	{
@@ -295,8 +407,8 @@ int Smoothie::DeferredRendering::Drawing::create()
 	lighting_global.IrradiancePrefilter_DescriptorSetLayout = indirect_lighting_maps.getDescriptorSetLayout();
 	lighting_global.DrawClassSetLayout = getDescriptorSetLayout(0);
 	lighting_global.renderPass = hdrPass.get_render_pass();
-	lighting_global.vertexShader = getSystemShaderModule("SYSTEM");
-	lighting_global.globalIlluminationModule = getSystemShaderModule("GLOBAL_ILLUMINATION");
+	lighting_global.vertexShader = getSystemShaderModule("vertex_default");
+	lighting_global.globalIlluminationModule = getSystemShaderModule("pbr_render");
 	if (lighting_global.create() != 0)
 	{
 		std::cout << "Failed to create global lighting!" << std::endl;
@@ -307,8 +419,7 @@ int Smoothie::DeferredRendering::Drawing::create()
 	skybox.HDRCubemap_descriptorSetLayout = skyboxTexture.getDescriptorSetLayout();
 	skybox.renderPass = hdrPass.get_render_pass();
 	skybox.drawerClassDescriptorSetLayout = getDescriptorSetLayout(0);
-	skybox.skyboxVertex = getSystemShaderModule("SKYBOX_VERTEX");
-	skybox.skyboxFragment = getSystemShaderModule("SKYBOX_FRAGMENT");
+	skybox.m_ShaderModule = getSystemShaderModule("skybox");
 	if (skybox.create() != 0)
 	{
 		std::cout << "Failed to create skybox!" << std::endl;
@@ -318,10 +429,8 @@ int Smoothie::DeferredRendering::Drawing::create()
 	bloom.HDRImageView = hdrPass.HDR.getImageView();
 	bloom.HDRImage = hdrPass.HDR.getImage();
 	bloom.ClampToEdgeLINEAR = getSampler("ClampToEdgeLINEAR");
-	bloom.vertexShader = getSystemShaderModule("SYSTEM");
-	bloom.higlightModule = getSystemShaderModule("BLOOM_HIGLIGHTS");
-	bloom.downsampleModule = getSystemShaderModule("BLOOM_DOWNSAMPLE");
-	bloom.upsampleModule = getSystemShaderModule("BLOOM_UPSAMPLE");
+	bloom.vertexShader = getSystemShaderModule("vertex_default");
+	bloom.m_FragmentShader = getSystemShaderModule("bloom");
 	if (bloom.create() != 0)
 	{
 		std::cout << "Failed to create bloom effect!" << std::endl;
@@ -337,45 +446,56 @@ int Smoothie::DeferredRendering::Drawing::create()
     return 0;
 }
 
-void Smoothie::DeferredRendering::Drawing::draw(VkCommandBuffer commandBuffer, unsigned int currentFrame) const
+void Smoothie::DeferredRendering::Drawing::draw(VkCommandBuffer commandBuffer, unsigned int imageIndex) const
 {
-	const VkDescriptorSet descriptorSet = getDescriptorSet();
+	const auto& _draw_data_buffers = m_DrawingBuffers[SmoothieCore::getCurrentFrame()];
+	const VkDescriptorSet _descriptorSet = getDescriptorSet();
 	vkCmdPipelineBarrier(commandBuffer, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT, 0,
 		0, nullptr,
 		0, nullptr,
 		0, nullptr);
-	
-	//Gbuffer pass
-	gBuffer_Pass.bindPass(commandBuffer, currentFrame);
-	for (const auto& [key, pipe] : gBufferPipelines)
+
+	begin_command_buffers(SmoothieCore::getCurrentFrame());
+	RecordCommandsData _draw_data;
+	_draw_data.commandBuffer_gBuffer = _draw_data_buffers.commandBuffer_GBuffer;
+	_draw_data.commandBuffer_HDR = _draw_data_buffers.commandBuffer_HDR;
+	_draw_data.commandBuffer_Compute = _draw_data_buffers.commandBuffer_Compute;
+	_draw_data.commandBuffer_Shadow = _draw_data_buffers.commandBuffer_Shadow;
+	_draw_data.descriptorSet_DrawClass = _descriptorSet;
+	_draw_data.imageIndex = imageIndex;
+	for (const auto& _pipe : m_ModelPipelines)
 	{
-		const auto* _ptr = pipe.get();
-		if (_ptr != nullptr) _ptr->bindAndDraw(commandBuffer, descriptorSet, currentFrame);
+		_pipe->record_commands(_draw_data);
 	}
-	gBuffer_Pass.unbindPass(commandBuffer, currentFrame);
+
+	lighting_global.draw(_draw_data.commandBuffer_HDR, _descriptorSet, imageIndex);
+	skybox.draw(_draw_data.commandBuffer_HDR, _descriptorSet, imageIndex);
+	end_command_buffers(SmoothieCore::getCurrentFrame());
+
+	//G-Buffer pass
+	gBuffer_Pass.bindPass(commandBuffer, imageIndex);
+	vkCmdExecuteCommands(commandBuffer, 1, &_draw_data_buffers.commandBuffer_GBuffer);
+	gBuffer_Pass.unbindPass(commandBuffer, imageIndex);
 	
 	//Screen space lighting effects
-	ssao.draw(commandBuffer, descriptorSet, currentFrame);
-	
+	ssao.draw(commandBuffer, _descriptorSet, imageIndex);
+
 	//HDR pass
-	hdrPass.bindPass(commandBuffer, currentFrame);
-	lighting_global.draw(commandBuffer, descriptorSet, currentFrame);
-	skybox.draw(commandBuffer, descriptorSet, currentFrame);
-	for (const auto& [key, pipe] : HDRPipelines)
-	{
-		if (pipe != nullptr) pipe->bindAndDraw(commandBuffer, descriptorSet, currentFrame);
-	}
-	hdrPass.unbindPass(commandBuffer, currentFrame);
+	hdrPass.bindPass(commandBuffer, imageIndex);
+	vkCmdExecuteCommands(commandBuffer, 1, &_draw_data_buffers.commandBuffer_HDR);
+	hdrPass.unbindPass(commandBuffer, imageIndex);
 
-	//Post processing effects
-	bloom.draw(commandBuffer, descriptorSet, currentFrame);
+	//Post-processing effects
+	bloom.draw(commandBuffer, _descriptorSet, imageIndex);
 
+	//If editor class exists, that class will handle the presentation
+	if (get_editor_core() != nullptr) return;
 
 	VkRenderPassBeginInfo beginInfo{};
 	beginInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
 	beginInfo.pNext = nullptr;
 	beginInfo.renderPass = SmoothieCore::getDefaultRenderPass();
-	beginInfo.framebuffer = SmoothieCore::getSwapchainFramebuffer(currentFrame);
+	beginInfo.framebuffer = SmoothieCore::getSwapchainFramebuffer(imageIndex);
 	beginInfo.renderArea.offset = { 0, 0 };
 	beginInfo.renderArea.extent.height = SmoothieCore::getScrHeight();
 	beginInfo.renderArea.extent.width = SmoothieCore::getScrWidth();
@@ -396,7 +516,7 @@ void Smoothie::DeferredRendering::Drawing::draw(VkCommandBuffer commandBuffer, u
 	const VkDescriptorSet _descriptors[3] =
 	{
 		SmoothieCore::getCameraDescriptorSet(),
-		descriptorSet,
+		_descriptorSet,
 		presentDescriptorSet
 	};
 	vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, presentPipelineLayout, 0, 3, _descriptors, 0, 0);
@@ -473,17 +593,11 @@ int Smoothie::DeferredRendering::Drawing::resize_callback()
 
 void Smoothie::DeferredRendering::Drawing::destroy()
 {
-	for (const auto& [key, pipe]: gBufferPipelines)
+	for (auto& _pipe: m_ModelPipelines)
 	{
-		if (pipe != nullptr) pipe->destroy();
+		if (_pipe != nullptr) _pipe->destroy();
 	}
-	gBufferPipelines.clear();
-
-	for (const auto& [key, pipe] : HDRPipelines)
-	{
-		if (pipe != nullptr) pipe->destroy();
-	}
-	HDRPipelines.clear();
+	m_ModelPipelines.clear();
 
 
 	destroy_present_pipeline();
@@ -498,9 +612,9 @@ void Smoothie::DeferredRendering::Drawing::destroy()
 	hdrPass.destroy();
 	gBuffer_Pass.destroy();
 
-	for (size_t i = 0; i < descriptors.size(); i++)
+	for (auto& _descriptor: descriptors)
 	{
-		descriptors[i].destroy();
+		_descriptor.destroy();
 	}
 	descriptors.clear();
 
@@ -511,12 +625,13 @@ void Smoothie::DeferredRendering::Drawing::destroy()
 	}
 	destroy_system_shaders();
 	samplers.clear();
+	destroy_command_buffers();
 }
 
 static std::mutex add_or_create_pipeline_lock;
 VkDescriptorSet Smoothie::DeferredRendering::Drawing::getDescriptorSet() const
 {
-	return descriptors[SmoothieCore::getCurrentFrame()].getDescriptrotSet();
+	return descriptors[SmoothieCore::getCurrentFrame()].getDescriptorSet();
 }
 
 VkSampler Smoothie::DeferredRendering::Drawing::getSampler(const std::string& name) const
@@ -530,134 +645,38 @@ VkSampler Smoothie::DeferredRendering::Drawing::getSampler(const std::string& na
 
 VkShaderModule Smoothie::DeferredRendering::Drawing::getSystemShaderModule(const std::string& identifier) const
 {
-	if (system_shaders.find(identifier) != system_shaders.end())
+	if (m_SystemShaders.find(identifier) != m_SystemShaders.end())
 	{
-		return system_shaders.at(identifier);
+		return m_SystemShaders.at(identifier);
 	}
 	return nullptr;
 }
 
-DeferredRendering::BasePipeline* Smoothie::DeferredRendering::Drawing::get_or_create_pipeline(const std::string& filePath)
+int DeferredRendering::Drawing::add_model(const std::shared_ptr<BasePipeline>& pipeline, std::shared_ptr<Deferred_Model> &model)
 {
-	//std::lock_guard<std::mutex> lock(add_or_create_pipeline_lock);
-	//if (gBufferPipelines.find(filePath) != gBufferPipelines.end())
-	//{
-	//	return gBufferPipelines[filePath].get();
-	//}
+	std::lock_guard<std::mutex> lock(add_or_create_pipeline_lock);
+	for (auto& _pipe: m_ModelPipelines)
+	{
+		if (_pipe != nullptr && _pipe == pipeline)
+		{
+			return _pipe->add_to_rendering(model);
+		}
+	}
 
-	//if (HDRPipelines.find(filePath) != HDRPipelines.end())
-	//{
-	//	return HDRPipelines[filePath].get();
-	//}
-
-	//ShaderFile shaderFile;
-	//if (shaderFile.create(filePath) != 0)
-	//{
-	//	std::cout << "Failed to create ShaderFile!" << std::endl;
-	//	return nullptr;
-	//}
-
-	//const auto& _filepath = shaderFile.get_filepath();
-	//const auto& _shaders = shaderFile.shaders;
-
-	////Standard pipeline :D
-	//if (_shaders.find({"STANDARD", VK_SHADER_STAGE_FRAGMENT_BIT}) != _shaders.end())
-	//{
-	//	const auto& __shader = _shaders.at({ "STANDARD", VK_SHADER_STAGE_FRAGMENT_BIT });
-
-	//	StaticPipeline __pipeline;
-	//	__pipeline.setDrawingClassDescriptrSetLayout(getDescriptorSetLayout(0));
-	//	__pipeline.setShaderFile(shaderFile);
-	//	if (__shader.pipe_outputs.size() == 1)
-	//	{
-	//		__pipeline.setRenderPass(HDRPass.get_render_pass());
-	//		if (__pipeline.create() != 0)
-	//		{
-	//			std::cout << "Failed to create pipleine from shader file: " << shaderFile.get_filepath() << std::endl;
-	//			return nullptr;
-	//		}
-
-	//		std::lock_guard<std::mutex> lock(_HDRMutex);
-	//		HDRPipelines[_filepath] = std::make_shared<StaticPipeline>(__pipeline);
-	//		return HDRPipelines[_filepath].get();
-	//	}
-	//	else
-	//	{
-	//		__pipeline.setRenderPass(gBuffer_Pass.get_render_pass());
-	//		__pipeline.setShaderFile(shaderFile);
-	//		if (__pipeline.create() != 0)
-	//		{
-	//			std::cout << "Failed to create pipleine from shader file: " << shaderFile.get_filepath() << std::endl;
-	//			return nullptr;
-	//		}
-	//		std::lock_guard<std::mutex> lock(_gBufferMutex);
-	//		gBufferPipelines[_filepath] = std::make_shared<StaticPipeline>(__pipeline);
-	//		return gBufferPipelines[_filepath].get();
-	//	}
-	//	
-
-	//}
-
-	return nullptr;
+	m_ModelPipelines.push_back(pipeline);
+	return pipeline->add_to_rendering(model);
 }
 
-int Smoothie::DeferredRendering::Drawing::add_Model_to_rendering(const std::string& _PipeID, StandardModel& model)
+void DeferredRendering::Drawing::remove_model(const std::shared_ptr<BasePipeline>& pipeline, std::shared_ptr<Deferred_Model> &model)
 {
-	//model.setPipeline(dynamic_cast<StaticPipeline*>(get_or_create_pipeline(_PipeID)));
-	//if (model.create() != 0)
-	//{
-	//	std::cout << "Failed to create the model!" << std::endl;
-	//	return 1;
-	//}
-
-	//if (gBufferPipelines.find(_PipeID) != gBufferPipelines.end())
-	//{
-	//	std::lock_guard<std::mutex> lock(_gBufferMutex);
-	//	const std::shared_ptr<BasePipeline>& __pipelines = gBufferPipelines[_PipeID];
-	//	if (__pipelines != nullptr)
-	//	{
-	//		__pipelines->add_to_rendering(std::make_shared<StandardModel>(model));
-	//		return 0;
-	//	}
-	//	
-	//	std::cout << "Pipeline with ID " << _PipeID << "Became invalid!" << std::endl;
-	//	return 1;
-	//}
-
-	//if (HDRPipelines.find(_PipeID) != HDRPipelines.end())
-	//{
-	//	std::lock_guard<std::mutex> lock(_HDRMutex);
-	//	const std::shared_ptr<BasePipeline>& __pipelines = HDRPipelines[_PipeID];
-	//	if (__pipelines != nullptr)
-	//	{
-	//		__pipelines->add_to_rendering(std::make_shared<StandardModel>(model));
-	//		return 0;
-	//	}
-
-	//	std::cout << "Pipeline with ID " << _PipeID << "Became invalid!" << std::endl;
-	//	return 1;
-	//}
-
-	return 0;
-}
-
-void Smoothie::DeferredRendering::Drawing::remove_Model_from_rendering(const std::string& shaderFile, const StandardModel& model)
-{
-	//if (gBufferPipelines.find(shaderFile) != gBufferPipelines.end())
-	//{
-	//	const std::shared_ptr<BasePipeline>& __pipelines = gBufferPipelines[shaderFile];
-	//	if (__pipelines == nullptr) return;
-	//	__pipelines->remove_from_rendering(std::make_shared<StandardModel>(model));
-	//	
-	//}
-
-	//if (HDRPipelines.find(shaderFile) != HDRPipelines.end())
-	//{
-	//	const std::shared_ptr<BasePipeline>& __pipelines = HDRPipelines[shaderFile];
-	//	if (__pipelines == nullptr) return;
-	//	__pipelines->remove_from_rendering(std::make_shared<StandardModel>(model));
-	//	
-	//}
+	std::lock_guard<std::mutex> lock(add_or_create_pipeline_lock);
+	for (auto& _pipe: m_ModelPipelines)
+	{
+		if (_pipe != nullptr && _pipe == pipeline)
+		{
+			_pipe->remove_from_rendering(model);
+		}
+	}
 }
 
 void Smoothie::DeferredRendering::Drawing::update_descriptorSet()

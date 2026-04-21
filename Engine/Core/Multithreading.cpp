@@ -1,99 +1,105 @@
 #include "Multithreading.h"
-#define _SMOOTHIE_ENGINE
 #include "Core/SmoothieCore.h"
-#include <mutex>
-
-
-ThreadFrendlyCommandData beginSingleTimeCommands()
+#include <iostream>
+int Smoothie::ImmediateCommandBuffer::create()
 {
-	ThreadFrendlyCommandData data;
-
-
-	VkCommandPoolCreateInfo poolInfo{};
-	poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
-	poolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
-	poolInfo.queueFamilyIndex = SmoothieCore::getQueueFamilyGraphicsIndex();
-
-	vkCreateCommandPool(SmoothieCore::getDevice(), &poolInfo, nullptr, &data.pool);
-
-	VkCommandBufferAllocateInfo allocInfo{};
-	allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-	allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-	allocInfo.commandPool = data.pool;
-	allocInfo.commandBufferCount = 1;
-
-	vkAllocateCommandBuffers(SmoothieCore::getDevice(), &allocInfo, &data.buffer);
-	VkCommandBufferBeginInfo beginInfo{};
-	beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-	beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-
-	vkBeginCommandBuffer(data.buffer, &beginInfo);
-	return data;
-
-}
-
-void endSingleTimeCommands(ThreadFrendlyCommandData& data)
-{
-	vkEndCommandBuffer(data.buffer);
-
-	VkSubmitInfo submitInfo{};
-	submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-	submitInfo.commandBufferCount = 1;
-	submitInfo.pCommandBuffers = &data.buffer;
-
-	MultithreadSubmissions::addToGraphicsQueue(submitInfo);
-
-	vkDestroyCommandPool(SmoothieCore::getDevice(), data.pool, nullptr);
-	data.pool = nullptr;
-	data.buffer = nullptr;
-
-
-}
-
-std::queue<VkSubmitInfo> MultithreadSubmissions::graphicsSubmitInfoQueue;
-std::thread::id MultithreadSubmissions::renderingThreadID;
-std::condition_variable MultithreadSubmissions::cv;
-
-static std::mutex m;
-static std::mutex waitMutex;
-void MultithreadSubmissions::addToGraphicsQueue(const VkSubmitInfo& submitInfo)
-{
-	if (std::this_thread::get_id() == renderingThreadID)
+	VkCommandPoolCreateInfo _poolCreateInfo{};
+	_poolCreateInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+	_poolCreateInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+	_poolCreateInfo.queueFamilyIndex = SmoothieCore::getQueueFamilyGraphicsIndex();
+	if (vkCreateCommandPool(SmoothieCore::getDevice(), &_poolCreateInfo, nullptr, &m_CommandPool) != VK_SUCCESS)
 	{
-		vkQueueSubmit(SmoothieCore::getGraphicsQueue(), 1, &submitInfo, VK_NULL_HANDLE);
-		vkQueueWaitIdle(SmoothieCore::getGraphicsQueue());
-
-		submitGraphicsQueue();
+		std::cout << "Failed to create command pool" << std::endl;
+		return 1;
 	}
-	else
+
+
+	VkCommandBufferAllocateInfo _bufferAllocateInfo{};
+	_bufferAllocateInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+	_bufferAllocateInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+	_bufferAllocateInfo.commandPool = m_CommandPool;
+	_bufferAllocateInfo.commandBufferCount = 1;
+	if (vkAllocateCommandBuffers(SmoothieCore::getDevice(), &_bufferAllocateInfo, &m_CommandBuffer) != VK_SUCCESS)
 	{
-
-		{
-			std::lock_guard<std::mutex> lock(m);
-			graphicsSubmitInfoQueue.push(submitInfo);
-		}
-		
-		std::unique_lock<std::mutex> lock(waitMutex);
-		cv.wait(lock, [] { return graphicsSubmitInfoQueue.empty(); });
+		std::cout << "Failed to allocate command buffers" << std::endl;
+		return 1;
 	}
+
+	m_BufferState = BufferState::Initial;
+
+	VkFenceCreateInfo _fenceCreateInfo{};
+	_fenceCreateInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+	_fenceCreateInfo.flags = 0;
+	if (vkCreateFence(SmoothieCore::getDevice(), &_fenceCreateInfo, nullptr, &m_Fence) != VK_SUCCESS)
+	{
+		std::cout << "Failed to create fence" << std::endl;
+		return 1;
+	}
+
+	return 0;
 }
 
-void MultithreadSubmissions::submitGraphicsQueue()
+int Smoothie::ImmediateCommandBuffer::begin()
 {
-	if (graphicsSubmitInfoQueue.empty()) return;
-	
-	while (!graphicsSubmitInfoQueue.empty())
+	VkCommandBufferBeginInfo _beginInfo{};
+	_beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+	_beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+	if (vkBeginCommandBuffer(m_CommandBuffer, &_beginInfo) != VK_SUCCESS)
 	{
-		VkSubmitInfo& submitInfo = graphicsSubmitInfoQueue.front();
-		vkQueueSubmit(SmoothieCore::getGraphicsQueue(), 1, &submitInfo, VK_NULL_HANDLE);
-		vkQueueWaitIdle(SmoothieCore::getGraphicsQueue());
-		graphicsSubmitInfoQueue.pop();
+		std::cout << "Failed to begin command buffer" << std::endl;
+		return 1;
 	}
-	cv.notify_all();
-	
+	m_BufferState = BufferState::Recording;
+	return 0;
 }
 
-void MultithreadSubmissions::getRenderingThreadID()
+int Smoothie::ImmediateCommandBuffer::end()
 {
-	renderingThreadID = std::this_thread::get_id();
+
+	if (vkEndCommandBuffer(m_CommandBuffer) != VK_SUCCESS)
+	{
+		std::cout << "Failed to end command buffer" << std::endl;
+	}
+	m_BufferState = BufferState::Executable;
+	return 0;
+}
+
+void Smoothie::ImmediateCommandBuffer::submit()
+{
+	VkSubmitInfo _submitInfo{};
+	_submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+	_submitInfo.commandBufferCount = 1;
+	_submitInfo.pCommandBuffers = &m_CommandBuffer;
+
+	const auto _queue = SmoothieCore::getGraphicsQueue();
+	vkQueueWaitIdle(_queue);
+	vkQueueSubmit(_queue, 1, &_submitInfo, m_Fence);
+	vkWaitForFences(SmoothieCore::getDevice(), 1, &m_Fence, VK_TRUE, UINT64_MAX);
+	vkResetFences(SmoothieCore::getDevice(), 1, &m_Fence);
+}
+
+void Smoothie::ImmediateCommandBuffer::submitAndWait()
+{
+	VkSubmitInfo _submitInfo{};
+	_submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+	_submitInfo.commandBufferCount = 1;
+	_submitInfo.pCommandBuffers = &m_CommandBuffer;
+
+	QueuedSubmitInfo _enginedSubmitInfo{};
+	_enginedSubmitInfo.fence = m_Fence;
+	_enginedSubmitInfo.submitInfos = {_submitInfo};
+	_enginedSubmitInfo.queue = SmoothieCore::getGraphicsQueue();
+
+	SmoothieCore::SubmitToExecutionQueue(_enginedSubmitInfo);
+
+	vkWaitForFences(SmoothieCore::getDevice(), 1, &m_Fence, VK_TRUE, UINT64_MAX);
+	vkResetFences(SmoothieCore::getDevice(), 1, &m_Fence);
+}
+
+void Smoothie::ImmediateCommandBuffer::destroy()
+{
+	vkDestroyFence(SmoothieCore::getDevice(), m_Fence, nullptr), m_Fence = nullptr;
+	vkDestroyCommandPool(SmoothieCore::getDevice(), m_CommandPool, nullptr), m_CommandPool = nullptr;
+	m_BufferState = BufferState::Invalid;
+	m_CommandBuffer = nullptr;
 }

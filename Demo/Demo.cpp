@@ -1,6 +1,7 @@
 #include "Demo.h"
 #include <set>
 #include <cmath>
+#include <iostream>
 
 #ifndef NDEBUG
     #define __USE_VALIDATION_LAYERS
@@ -343,10 +344,15 @@ int SmoothieEngineInitInfo::create_device(VkDevice& device)
 
     std::vector<const char*> deviceExtentions;
     deviceExtentions.push_back(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
-
     createInfo.enabledExtensionCount = static_cast<unsigned int>(deviceExtentions.size());
     createInfo.ppEnabledExtensionNames = deviceExtentions.data();
-    
+
+    VkPhysicalDeviceDynamicRenderingFeatures dynamicRenderingFeatures = {
+        .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_FEATURES,
+        .dynamicRendering = VK_TRUE,
+    };
+
+    createInfo.pNext = &dynamicRenderingFeatures;
     if (vkCreateDevice(SmoothieCore::getPhysicalDevice(), &createInfo, nullptr, &device) != VK_SUCCESS)
     {
         std::cout << "Could not create a device!" << std::endl;
@@ -439,7 +445,7 @@ static VkSurfaceFormatKHR chooseSwapSurfaceFormat(const std::vector<VkSurfaceFor
 
 static VkPresentModeKHR chooseSwapPresentMode(const std::vector<VkPresentModeKHR>& availablePresentModes) {
     for (const auto& availablePresentMode : availablePresentModes) {
-        if (availablePresentMode == VK_PRESENT_MODE_MAILBOX_KHR) {
+        if (availablePresentMode == VK_PRESENT_MODE_IMMEDIATE_KHR) {
             return availablePresentMode;
         }
     }

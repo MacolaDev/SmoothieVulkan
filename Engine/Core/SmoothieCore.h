@@ -5,10 +5,12 @@
 #include <memory>
 #include <array>
 #include <vector>
+#include <queue>
 
 #include <vulkan/vulkan.h>
 #include "vk_mem_alloc.h"
 
+#include "Core/Multithreading.h"
 #include "Core/Camera.h"
 #include "Core/Scene.h"
 #include "Core/RenderPass.h"
@@ -63,6 +65,8 @@ namespace Smoothie
         virtual int create_default_renderpass(VkRenderPass& renderPass) = 0;
         virtual void destroy_default_renderpass(VkRenderPass& renderPass) = 0;
 
+        virtual ~SmoothieCore_Initialization() = default;
+
     };
 }
 
@@ -75,7 +79,7 @@ public:
         unsigned int windowWidth,
         unsigned windowHeight,
 
-        std::shared_ptr<Smoothie::Scene_Default> scene_loader = std::make_shared<Smoothie::Scene_Default>(),
+        std::shared_ptr<Smoothie::Scene_Base> scene_loader = std::make_shared<Smoothie::DeferredRendering::Deferred_Scene>(),
         std::shared_ptr<Smoothie::Drawing_Base> drawingClass = std::make_shared<Smoothie::DeferredRendering::Drawing>()
     );
     static int finitEngine();
@@ -103,12 +107,21 @@ public:
     static inline VkFramebuffer getSwapchainFramebuffer(unsigned int index) { return swapchainFramebuffers[index]; }
     static inline VmaAllocator getVulkanMemoryAllocator() { return vmaAllocator; }
 
-    static inline VkDescriptorSet getCameraDescriptorSet() { return cameraDescriptorSets[currentFrame].getDescriptrotSet(); }
-    static inline VkDescriptorSetLayout getCameraDescriptorSetLayout(unsigned int index) { return cameraDescriptorSets[index].getDescriptrotSetLayout(); }
+    static inline VkDescriptorSet getCameraDescriptorSet() { return cameraDescriptorSets[currentFrame].getDescriptorSet(); }
+    static inline VkDescriptorSetLayout getCameraDescriptorSetLayout(unsigned int index) { return cameraDescriptorSets[index].getDescriptorLayout(); }
     
     static inline std::vector<VkImage> getSwapchainImages() { return swapchainImages; }
     static inline std::vector<VkImageView> getSwapchainImageViews() { return swapchainImageViews; }
     static inline std::vector<VkFramebuffer> getSwapchainFramebuffers() { return swapchainFramebuffers; }
+
+    static int SubmitToExecutionQueue(const Smoothie::QueuedSubmitInfo& submitInfo);
+
+
+    //Notify engine about thread whose execution is not implicitly synchronized by the user.
+    //Engine will halt scene saving/closing and engine/drawing class destruction until all futures finish their execution to prevent data races and "use after free" errors.
+    //This function is thread safe.
+    static void Submit_ExecutionThread(std::future<void> future);
+
 
     static inline unsigned int getQueueFamilyGraphicsIndex() { return queueFamilyGraphicsIndex; }
     static inline unsigned int getQueueFamilyPresentIndex() { return queueFamilyPresentIndex; }
@@ -116,7 +129,8 @@ public:
     static inline unsigned int getScrHeight(){return SCR_HEIGHT;}
     static inline unsigned int getCurrentFrame() { return currentFrame; }
 
-    static inline Smoothie::Drawing_Base* getDrawerClass() { return drawerClass.get(); }
+    static inline Smoothie::Drawing_Base* getDrawingClass() { return drawerClass.get(); }
+    static inline std::shared_ptr<Smoothie::Drawing_Base>& getDrawingClassPtr() {return drawerClass; }
 
     //Generates a new random value between 1 to 2,147,483,648
     //used for creating IDs of various objects
@@ -151,6 +165,7 @@ private:
 
     static std::shared_ptr<Smoothie::SmoothieCore_Initialization> init_info;
     static std::shared_ptr<Smoothie::Drawing_Base> drawerClass;
+    static std::string s_scene_file;
 
     SmoothieCore() = default;
     static std::array<VkCommandBuffer, SMOOTHIE_MAX_FRAMES_IN_FLIGHT> renderCommandBuffers;
@@ -159,6 +174,8 @@ private:
     static std::array<VkFence, SMOOTHIE_MAX_FRAMES_IN_FLIGHT> inFlightFences;
     static unsigned int currentFrame;
 
+    static std::queue<Smoothie::QueuedSubmitInfo> s_PendingQueue;
+    static std::queue<std::future<void>> s_PendingFutures;
 
     static VkInstance instance;
     static VkPhysicalDevice physicalDevice;
@@ -182,7 +199,7 @@ private:
     static VkRenderPass defaultRenderPass;
 
     static bool isEngineReady;
-    static std::shared_ptr<Smoothie::Scene_Default> scene;
+    static std::shared_ptr<Smoothie::Scene_Base> scene;
 
     static unsigned int SCR_WIDTH, SCR_HEIGHT;
     static SmoothieMath::Matrix4x4 cameraProjectionViewMatrix;

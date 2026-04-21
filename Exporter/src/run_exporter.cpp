@@ -15,79 +15,79 @@
 #include "VertexAttribute.h"
 
 using namespace Smoothie::XML;
-using namespace SmoothieExporter;
+// using namespace SmoothieExporter;
 
 static void glfw_error_callback(int error, const char* description)
 {
     fprintf(stderr, "GLFW Error %d: %s\n", error, description);
 }
 
-static std::vector<PropertyBase*> getModelProperties(
-    const std::vector<ShaderVariable>& data,
-    const std::vector<const char*> texturePaths2D, const Element& propertiesElement) 
-{
-    std::vector<PropertyBase*> output(data.size());
-    
-    for (size_t i = 0; i < data.size(); i++)
-    {
-        const std::string& propertyName = data[i].name;
-        switch (data[i].type)
-        {
-        case MODEL_DESCRIPTOR_DATA_TYPE_UNSIGNED_INT:
-            if (propertyName == "ModelID") 
-            {
-                output[i] = nullptr;
-                break;
-            }
-
-            output[i] = new PropertyUnsignedInt(propertyName);
-            output[i]->set_selected_option(propertiesElement);
-            break;
-
-        case MODEL_DESCRIPTOR_DATA_TYPE_FLOAT:
-            output[i] = new PropertyFloat(propertyName);
-            output[i]->set_selected_option(propertiesElement);
-            break;
-
-        case MODEL_DESCRIPTOR_DATA_TYPE_FLOAT_VEC2:
-            output[i] = new PropertyVector2(propertyName);
-            output[i]->set_selected_option(propertiesElement);
-            break;
-
-        case MODEL_DESCRIPTOR_DATA_TYPE_FLOAT_VEC3:
-            output[i] = new PropertyVector3(propertyName);
-            output[i]->set_selected_option(propertiesElement);
-            break;
-
-        case MODEL_DESCRIPTOR_DATA_TYPE_FLOAT_VEC4:
-            output[i] = new PropertyVector4(propertyName);
-            output[i]->set_selected_option(propertiesElement);
-            break;
-
-
-
-        case MODEL_DESCRIPTOR_SAMPLER_2D:
-            output[i] = new PropertySampler2D(propertyName, texturePaths2D);
-            output[i]->set_selected_option(propertiesElement);
-            break;
-
-
-        default:
-            output[i] = nullptr;
-            break;
-        }
-    }
- 
-    return output;
-}
-
-static void clearProperties(std::vector<PropertyBase*> data) 
-{
-    for (auto& d : data) 
-    {
-        delete d;
-    }
-}
+// static std::vector<PropertyBase*> getModelProperties(
+//     const std::vector<ShaderVariable>& data,
+//     const std::vector<const char*> texturePaths2D, const Element& propertiesElement)
+// {
+//     std::vector<PropertyBase*> output(data.size());
+//
+//     for (size_t i = 0; i < data.size(); i++)
+//     {
+//         const std::string& propertyName = data[i].name;
+//         switch (data[i].type)
+//         {
+//         case MODEL_DESCRIPTOR_DATA_TYPE_UNSIGNED_INT:
+//             if (propertyName == "ModelID")
+//             {
+//                 output[i] = nullptr;
+//                 break;
+//             }
+//
+//             output[i] = new PropertyUnsignedInt(propertyName);
+//             output[i]->set_selected_option(propertiesElement);
+//             break;
+//
+//         case MODEL_DESCRIPTOR_DATA_TYPE_FLOAT:
+//             output[i] = new PropertyFloat(propertyName);
+//             output[i]->set_selected_option(propertiesElement);
+//             break;
+//
+//         case MODEL_DESCRIPTOR_DATA_TYPE_FLOAT_VEC2:
+//             output[i] = new PropertyVector2(propertyName);
+//             output[i]->set_selected_option(propertiesElement);
+//             break;
+//
+//         case MODEL_DESCRIPTOR_DATA_TYPE_FLOAT_VEC3:
+//             output[i] = new PropertyVector3(propertyName);
+//             output[i]->set_selected_option(propertiesElement);
+//             break;
+//
+//         case MODEL_DESCRIPTOR_DATA_TYPE_FLOAT_VEC4:
+//             output[i] = new PropertyVector4(propertyName);
+//             output[i]->set_selected_option(propertiesElement);
+//             break;
+//
+//
+//
+//         case MODEL_DESCRIPTOR_SAMPLER_2D:
+//             output[i] = new PropertySampler2D(propertyName, texturePaths2D);
+//             output[i]->set_selected_option(propertiesElement);
+//             break;
+//
+//
+//         default:
+//             output[i] = nullptr;
+//             break;
+//         }
+//     }
+//
+//     return output;
+// }
+//
+// static void clearProperties(std::vector<PropertyBase*> data)
+// {
+//     for (auto& d : data)
+//     {
+//         delete d;
+//     }
+// }
 
 static int getTextures(PyObject* listWithTextures, std::vector<const char*>& textureData) 
 {
@@ -114,60 +114,60 @@ struct SelectVertexAttribute
     int selected = 0;
 };
 
-static int createVertexAttributeNames(
-    const std::vector<ShaderPipeInput>& inputData,
-    const VertexAttributeNamesPerType& attributeNames, 
-    std::vector<SelectVertexAttribute>& selectableAttributes,
-    int& isExportPossible)
-{
-    selectableAttributes.resize(inputData.size());
-    for (size_t i = 0; i < selectableAttributes.size(); i++)
-    {
-        selectableAttributes[i].attributeName = inputData[i].name;
-
-        switch (inputData[i].type)
-        {
-        case MODEL_DESCRIPTOR_DATA_TYPE_FLOAT:
-            selectableAttributes[i].validVertexAttributeNames = attributeNames.floatNames;
-            break;
-
-        case MODEL_DESCRIPTOR_DATA_TYPE_INT:
-            selectableAttributes[i].validVertexAttributeNames = attributeNames.intNames;
-            break;
-
-        case MODEL_DESCRIPTOR_DATA_TYPE_BOOL:
-            selectableAttributes[i].validVertexAttributeNames = attributeNames.boolNames;
-            break;
-
-        case MODEL_DESCRIPTOR_DATA_TYPE_BYTE:
-            selectableAttributes[i].validVertexAttributeNames = attributeNames.int8Names;
-            break;
-
-        case MODEL_DESCRIPTOR_DATA_TYPE_FLOAT_VEC2:
-            selectableAttributes[i].validVertexAttributeNames = attributeNames.vec2FloatNames;
-            break;
-
-        case MODEL_DESCRIPTOR_DATA_TYPE_INT_VEC2:
-            selectableAttributes[i].validVertexAttributeNames = attributeNames.vec2IntNames;
-            break;
-
-        case MODEL_DESCRIPTOR_DATA_TYPE_FLOAT_VEC3:
-            selectableAttributes[i].validVertexAttributeNames = attributeNames.vec3FloatNames;
-            break;
-
-        case MODEL_DESCRIPTOR_DATA_TYPE_FLOAT_VEC4:
-            selectableAttributes[i].validVertexAttributeNames = attributeNames.vec4FloatNames;
-            break;
-
-        default:
-            isExportPossible &= 0;
-            break;
-        }
-
-    }
-
-    return 0;
-}
+// static int createVertexAttributeNames(
+//     const std::vector<ShaderPipeInput>& inputData,
+//     const VertexAttributeNamesPerType& attributeNames,
+//     std::vector<SelectVertexAttribute>& selectableAttributes,
+//     int& isExportPossible)
+// {
+//     selectableAttributes.resize(inputData.size());
+//     for (size_t i = 0; i < selectableAttributes.size(); i++)
+//     {
+//         selectableAttributes[i].attributeName = inputData[i].name;
+//
+//         switch (inputData[i].type)
+//         {
+//         case MODEL_DESCRIPTOR_DATA_TYPE_FLOAT:
+//             selectableAttributes[i].validVertexAttributeNames = attributeNames.floatNames;
+//             break;
+//
+//         case MODEL_DESCRIPTOR_DATA_TYPE_INT:
+//             selectableAttributes[i].validVertexAttributeNames = attributeNames.intNames;
+//             break;
+//
+//         case MODEL_DESCRIPTOR_DATA_TYPE_BOOL:
+//             selectableAttributes[i].validVertexAttributeNames = attributeNames.boolNames;
+//             break;
+//
+//         case MODEL_DESCRIPTOR_DATA_TYPE_BYTE:
+//             selectableAttributes[i].validVertexAttributeNames = attributeNames.int8Names;
+//             break;
+//
+//         case MODEL_DESCRIPTOR_DATA_TYPE_FLOAT_VEC2:
+//             selectableAttributes[i].validVertexAttributeNames = attributeNames.vec2FloatNames;
+//             break;
+//
+//         case MODEL_DESCRIPTOR_DATA_TYPE_INT_VEC2:
+//             selectableAttributes[i].validVertexAttributeNames = attributeNames.vec2IntNames;
+//             break;
+//
+//         case MODEL_DESCRIPTOR_DATA_TYPE_FLOAT_VEC3:
+//             selectableAttributes[i].validVertexAttributeNames = attributeNames.vec3FloatNames;
+//             break;
+//
+//         case MODEL_DESCRIPTOR_DATA_TYPE_FLOAT_VEC4:
+//             selectableAttributes[i].validVertexAttributeNames = attributeNames.vec4FloatNames;
+//             break;
+//
+//         default:
+//             isExportPossible &= 0;
+//             break;
+//         }
+//
+//     }
+//
+//     return 0;
+// }
 
 
 static inline int startOpenGL(GLFWwindow** window) 
@@ -273,57 +273,57 @@ static int write_model_file(
 PyObject* run_exporter(PyObject* self, PyObject* args) 
 {
     //Model save filepath
-    std::string modelSaveFilepath;
-    if(readPythonString(modelSaveFilepath, "model_save_filepath", args) != 0) return nullptr;
-    int isModelFileExportPossible = isPathValid(modelSaveFilepath);
-
-    /*std::string modelName;
-    if (readPythonString(modelName, "model_name", args) != 0) return nullptr;*/
-    
-    /*std::string geometryFile;
-    if (readPythonString(geometryFile, "geometry_save_filepath", args) != 0) return nullptr;*/
-
-    std::string bbMin, bbMax;
-    if (readPythonString(bbMin, "bbMin", args) != 0) return nullptr;
-    if (readPythonString(bbMax, "bbMax", args) != 0) return nullptr;
-
-    //***************************** get saved data from belnder ************************************//
-    std::string modelData;
-    if (readPythonString(modelData, "model_data_str", args) != 0) return nullptr;
-    
-    Element rootElement;
-    XMLError error;
-    if (built_tree_from_string(modelData, rootElement, error) != 0) 
-    {
-        rootElement.name = "root";
-    };
-    
-
-    //***************************** Get textures from blender *************************************//
-    PyObject* savedTexturesPython = nullptr;
-    if (getPythonAttribute(&savedTexturesPython, "saved_textures", args) != 0) return nullptr;
-
-    std::vector<const char*> textures2D;
-    if (getTextures(savedTexturesPython, textures2D) != 0) return nullptr;
-
-
-    //***************************** Get shader file from blender ************************************//
-    std::string modelShader;
-    if (readPythonString(modelShader, "selected_shader", args) != 0) return nullptr;
-
-    ShaderFileMap shaderFile;
-    if (parse_shader_file(modelShader, shaderFile) != 0)
-    {
-        std::string _error = "Failed to parse shader file!";
-        PyErr_SetString(PyExc_AttributeError, _error.c_str());
-        return nullptr;
-    }
-
-    std::vector<ShaderStage> __vertex_shaders;
-    for (const auto& [__name, __shader] : shaderFile)
-    {
-        if (__name.stage == VK_SHADER_STAGE_VERTEX_BIT) __vertex_shaders.push_back(__shader);
-    }
+    // std::string modelSaveFilepath;
+    // if(readPythonString(modelSaveFilepath, "model_save_filepath", args) != 0) return nullptr;
+    // int isModelFileExportPossible = isPathValid(modelSaveFilepath);
+    //
+    // /*std::string modelName;
+    // if (readPythonString(modelName, "model_name", args) != 0) return nullptr;*/
+    //
+    // /*std::string geometryFile;
+    // if (readPythonString(geometryFile, "geometry_save_filepath", args) != 0) return nullptr;*/
+    //
+    // std::string bbMin, bbMax;
+    // if (readPythonString(bbMin, "bbMin", args) != 0) return nullptr;
+    // if (readPythonString(bbMax, "bbMax", args) != 0) return nullptr;
+    //
+    // //***************************** get saved data from belnder ************************************//
+    // std::string modelData;
+    // if (readPythonString(modelData, "model_data_str", args) != 0) return nullptr;
+    //
+    // Element rootElement;
+    // XMLError error;
+    // if (built_tree_from_string(modelData, rootElement, error) != 0)
+    // {
+    //     rootElement.name = "root";
+    // };
+    //
+    //
+    // //***************************** Get textures from blender *************************************//
+    // PyObject* savedTexturesPython = nullptr;
+    // if (getPythonAttribute(&savedTexturesPython, "saved_textures", args) != 0) return nullptr;
+    //
+    // std::vector<const char*> textures2D;
+    // if (getTextures(savedTexturesPython, textures2D) != 0) return nullptr;
+    //
+    //
+    // //***************************** Get shader file from blender ************************************//
+    // std::string modelShader;
+    // if (readPythonString(modelShader, "selected_shader", args) != 0) return nullptr;
+    //
+    // ShaderFileMap shaderFile;
+    // if (parse_shader_file(modelShader, shaderFile) != 0)
+    // {
+    //     std::string _error = "Failed to parse shader file!";
+    //     PyErr_SetString(PyExc_AttributeError, _error.c_str());
+    //     return nullptr;
+    // }
+    //
+    // std::vector<ShaderStage> __vertex_shaders;
+    // for (const auto& [__name, __shader] : shaderFile)
+    // {
+    //     if (__name.stage == VK_SHADER_STAGE_VERTEX_BIT) __vertex_shaders.push_back(__shader);
+    // }
 
 
     //std::vector<PropertyBase*> modelProperties = getModelProperties(shaderFile, textures2D, rootElement.getChild("selected-model-properties"));
@@ -346,52 +346,52 @@ PyObject* run_exporter(PyObject* self, PyObject* args)
 
 
     //******************************* Starting GLFW stuff *********************************************//
-    GLFWwindow* window = nullptr;
-    if(startOpenGL(&window) != 0 ) return nullptr;
-    
-
-    //************************ ImGui stuff ********************************//
-	IMGUI_CHECKVERSION();
-	auto imGuiContext = ImGui::CreateContext();
-	ImGuiIO& io = ImGui::GetIO(); (void)io;
-	io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
-	io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;
-
-	ImGui::StyleColorsDark();
-	ImGui_ImplGlfw_InitForOpenGL(window, true);
-	ImGui_ImplOpenGL3_Init("#version 450");
-
-    //main loop
-    while (!glfwWindowShouldClose(window))
-    {
-        glfwPollEvents();
-        if (glfwGetWindowAttrib(window, GLFW_ICONIFIED) != 0)
-        {
-            ImGui_ImplGlfw_Sleep(10);
-            continue;
-        }
-
-        int display_w, display_h;
-        glfwGetFramebufferSize(window, &display_w, &display_h);
-        glViewport(0, 0, display_w, display_h);
-        glClearColor(0, 0, 0, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT);
-
-        // Start the Dear ImGui frame
-        ImGui_ImplOpenGL3_NewFrame();
-        ImGui_ImplGlfw_NewFrame();
-        ImGui::NewFrame();
-
-        //ImGui::ShowDemoWindow();
-        
-        ImGui::SetNextWindowPos({ 0, 0 });
-        const ImVec2 windowSizeFloat = { static_cast<float>(display_w), static_cast<float>(display_h) };
-        ImGui::SetNextWindowSize(windowSizeFloat);
-        ImGuiWindowFlags windowFlags = 0;
-        windowFlags |= ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove;
-        windowFlags |= ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus;
-        
-        ImGui::Begin("MAIN_WINDOW", nullptr, windowFlags);
+ //    GLFWwindow* window = nullptr;
+ //    if(startOpenGL(&window) != 0 ) return nullptr;
+ //
+ //
+ //    //************************ ImGui stuff ********************************//
+	// IMGUI_CHECKVERSION();
+	// auto imGuiContext = ImGui::CreateContext();
+	// ImGuiIO& io = ImGui::GetIO(); (void)io;
+	// io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
+	// io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;
+ //
+	// ImGui::StyleColorsDark();
+	// ImGui_ImplGlfw_InitForOpenGL(window, true);
+	// ImGui_ImplOpenGL3_Init("#version 450");
+ //
+ //    //main loop
+ //    while (!glfwWindowShouldClose(window))
+ //    {
+ //        glfwPollEvents();
+ //        if (glfwGetWindowAttrib(window, GLFW_ICONIFIED) != 0)
+ //        {
+ //            ImGui_ImplGlfw_Sleep(10);
+ //            continue;
+ //        }
+ //
+ //        int display_w, display_h;
+ //        glfwGetFramebufferSize(window, &display_w, &display_h);
+ //        glViewport(0, 0, display_w, display_h);
+ //        glClearColor(0, 0, 0, 1.0f);
+ //        glClear(GL_COLOR_BUFFER_BIT);
+ //
+ //        // Start the Dear ImGui frame
+ //        ImGui_ImplOpenGL3_NewFrame();
+ //        ImGui_ImplGlfw_NewFrame();
+ //        ImGui::NewFrame();
+ //
+ //        //ImGui::ShowDemoWindow();
+ //
+ //        ImGui::SetNextWindowPos({ 0, 0 });
+ //        const ImVec2 windowSizeFloat = { static_cast<float>(display_w), static_cast<float>(display_h) };
+ //        ImGui::SetNextWindowSize(windowSizeFloat);
+ //        ImGuiWindowFlags windowFlags = 0;
+ //        windowFlags |= ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove;
+ //        windowFlags |= ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus;
+ //
+ //        ImGui::Begin("MAIN_WINDOW", nullptr, windowFlags);
 
         
         //ImGui::SeparatorText("General data");
@@ -449,17 +449,17 @@ PyObject* run_exporter(PyObject* self, PyObject* args)
         //ImGui::EndDisabled();
         //if (isModelFileExportPossible == 0) ImGui::SameLine(), ImGui::Text("Target path is not valid!");
 
-        ImGui::End();
+    //     ImGui::End();
+    //
+    //     // Rendering
+    //     ImGui::Render();
+    //     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+    //     glfwSwapBuffers(window);
+    //
+    // }
 
-        // Rendering
-        ImGui::Render();
-        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
-        glfwSwapBuffers(window);
 
-    }
-
-
-    rootElement.children.clear();
+    //rootElement.children.clear();
 
     ////Saving properties data
     //Element selected_model_properties("selected-model-properties");
@@ -472,14 +472,15 @@ PyObject* run_exporter(PyObject* self, PyObject* args)
     //clearProperties(modelProperties);
     //freeVertexAttributeData(vertexAttributes);
 
-    ImGui_ImplOpenGL3_Shutdown();
-    ImGui_ImplGlfw_Shutdown();
-    ImGui::DestroyContext();
-
-    glfwDestroyWindow(window);
-    glfwTerminate();
-
-    std::string data_for_saving;
-    if (build_string_from_tree(rootElement, data_for_saving, error) != 0) data_for_saving = modelData;
-    return PyUnicode_FromString(data_for_saving.c_str());
+    // ImGui_ImplOpenGL3_Shutdown();
+    // ImGui_ImplGlfw_Shutdown();
+    // ImGui::DestroyContext();
+    //
+    // glfwDestroyWindow(window);
+    // glfwTerminate();
+    //
+    // std::string data_for_saving;
+    // if (build_string_from_tree(rootElement, data_for_saving, error) != 0) data_for_saving = modelData;
+    // return PyUnicode_FromString(data_for_saving.c_str());
+    return PyUnicode_FromString("Nothing :)");
 }

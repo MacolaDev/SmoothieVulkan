@@ -4,6 +4,8 @@
 #include "Core/Pipeline.h"
 #include "Core/Multithreading.h"
 #include <cmath>
+#include <iostream>
+
 int Smoothie::DeferredRendering::Lighting_RenderPass::create()
 {
 	VkAttachmentDescription _attachmentDescription{};
@@ -146,13 +148,13 @@ int Smoothie::DeferredRendering::Global_Illumination::create()
 
 	VkPipelineShaderStageCreateInfo vertexShaderPipelineCreateInfo{};
 	vertexShaderPipelineCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-	vertexShaderPipelineCreateInfo.pName = "main";
+	vertexShaderPipelineCreateInfo.pName = "vertex_QUAD";
 	vertexShaderPipelineCreateInfo.stage = VK_SHADER_STAGE_VERTEX_BIT;
 	vertexShaderPipelineCreateInfo.module = vertexShader;
 
 	VkPipelineShaderStageCreateInfo fragmentShaderPipelineCreateInfo{};
 	fragmentShaderPipelineCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-	fragmentShaderPipelineCreateInfo.pName = "main";
+	fragmentShaderPipelineCreateInfo.pName = "fragment_GLOBAL_ILLUMINATION";
 	fragmentShaderPipelineCreateInfo.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
 	fragmentShaderPipelineCreateInfo.module = globalIlluminationModule;
 
@@ -322,12 +324,12 @@ int Smoothie::DeferredRendering::BRDF::create()
 	pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
 	VkPipelineShaderStageCreateInfo vertexShaderPipelineCreateInfo{};
 	vertexShaderPipelineCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-	vertexShaderPipelineCreateInfo.pName = "main";
+	vertexShaderPipelineCreateInfo.pName = "vertex_QUAD";
 	vertexShaderPipelineCreateInfo.stage = VK_SHADER_STAGE_VERTEX_BIT;
 	vertexShaderPipelineCreateInfo.module = vertexShader;
 	VkPipelineShaderStageCreateInfo fragmentShaderPipelineCreateInfo{};
 	fragmentShaderPipelineCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-	fragmentShaderPipelineCreateInfo.pName = "main";
+	fragmentShaderPipelineCreateInfo.pName = "fragment_BRDF";
 	fragmentShaderPipelineCreateInfo.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
 	fragmentShaderPipelineCreateInfo.module = fragmentShader;
 	const VkPipelineShaderStageCreateInfo stages[] = { vertexShaderPipelineCreateInfo, fragmentShaderPipelineCreateInfo };
@@ -348,7 +350,11 @@ int Smoothie::DeferredRendering::BRDF::create()
 
 
 	//************************************* BRDF rendering ****************************************************//
-	auto commandBuffer = beginSingleTimeCommands();
+	ImmediateCommandBuffer _immediateCommandBuffer;
+	_immediateCommandBuffer.create();
+	_immediateCommandBuffer.begin();
+	auto _commandBuffer = _immediateCommandBuffer.get_CommandBuffer();
+
 	VkRenderPassBeginInfo renderPassBeginInfo{};
 	renderPassBeginInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
 	renderPassBeginInfo.framebuffer = framebuffer;
@@ -360,8 +366,8 @@ int Smoothie::DeferredRendering::BRDF::create()
 	renderPassBeginInfo.renderArea.extent.height = createImage.extent.height;
 	renderPassBeginInfo.renderArea.extent.width = createImage.extent.width;
 	renderPassBeginInfo.renderArea.offset = { 0, 0 };
-	vkCmdBindPipeline(commandBuffer.buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
-	vkCmdBeginRenderPass(commandBuffer.buffer, &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
+	vkCmdBindPipeline(_commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
+	vkCmdBeginRenderPass(_commandBuffer, &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
 
 	VkViewport viewport = {};
 	viewport.x = 0.0f;
@@ -370,15 +376,17 @@ int Smoothie::DeferredRendering::BRDF::create()
 	viewport.height = static_cast<float>(createImage.extent.width);
 	viewport.minDepth = 0.0f;
 	viewport.maxDepth = 1.0f;
-	vkCmdSetViewport(commandBuffer.buffer, 0, 1, &viewport);
+	vkCmdSetViewport(_commandBuffer, 0, 1, &viewport);
 	VkRect2D scissor{};
 	scissor.offset = { 0, 0 };
 	scissor.extent.height = createImage.extent.height;
 	scissor.extent.width = createImage.extent.height;
-	vkCmdSetScissor(commandBuffer.buffer, 0, 1, &scissor);
-	vkCmdDraw(commandBuffer.buffer, 6, 1, 0, 0);
-	vkCmdEndRenderPass(commandBuffer.buffer);
-	endSingleTimeCommands(commandBuffer);
+	vkCmdSetScissor(_commandBuffer, 0, 1, &scissor);
+	vkCmdDraw(_commandBuffer, 6, 1, 0, 0);
+	vkCmdEndRenderPass(_commandBuffer);
+	_immediateCommandBuffer.end();
+	_immediateCommandBuffer.submit();
+	_immediateCommandBuffer.destroy();
 
 
 	//************************************* Cleanup for unused stuff ***************************************************//
@@ -511,7 +519,10 @@ int Smoothie::DeferredRendering::IndirectLightingMaps::create()
 		return 1;
 	}
 
-	auto commandBuffer = beginSingleTimeCommands();
+	ImmediateCommandBuffer _immediateCommandBuffer;
+	_immediateCommandBuffer.create();
+	_immediateCommandBuffer.begin();
+	auto _commandBuffer = _immediateCommandBuffer.get_CommandBuffer();
 
 	VkImageMemoryBarrier barrier{};
 	barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
@@ -521,20 +532,21 @@ int Smoothie::DeferredRendering::IndirectLightingMaps::create()
 	barrier.srcAccessMask = 0;
 	barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
 	barrier.subresourceRange = _IrrMapViewCreateInfo.subresourceRange;
-	vkCmdPipelineBarrier(commandBuffer.buffer, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, 0, nullptr, 1, &barrier);
+	vkCmdPipelineBarrier(_commandBuffer, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, 0, nullptr, 1, &barrier);
 	VkClearColorValue _clearColorValue{};
 	_clearColorValue.float32[0] = 0.69f;
 	_clearColorValue.float32[1] = 0.69f;
 	_clearColorValue.float32[2] = 0.69f;
 	_clearColorValue.float32[3] = 1.0f;
-	vkCmdClearColorImage(commandBuffer.buffer, IrradianceMapImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &_clearColorValue, 1, &_IrrMapViewCreateInfo.subresourceRange);
+	vkCmdClearColorImage(_commandBuffer, IrradianceMapImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &_clearColorValue, 1, &_IrrMapViewCreateInfo.subresourceRange);
 	barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
 	barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 	barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
 	barrier.dstAccessMask = 0;
-	vkCmdPipelineBarrier(commandBuffer.buffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, nullptr, 0, nullptr, 1, &barrier);
+	vkCmdPipelineBarrier(_commandBuffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, nullptr, 0, nullptr, 1, &barrier);
 	
-	endSingleTimeCommands(commandBuffer);
+	_immediateCommandBuffer.end();
+	_immediateCommandBuffer.submit();
 
 	//**************************************** Prefilter image ****************************************//
 	VkImageCreateInfo _PrefImageCreateImage{};
@@ -574,7 +586,7 @@ int Smoothie::DeferredRendering::IndirectLightingMaps::create()
 		return 1;
 	}
 
-	commandBuffer = beginSingleTimeCommands();
+	_immediateCommandBuffer.begin();
 
 	barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
 	barrier.image = PrefilterMapImage;
@@ -583,20 +595,21 @@ int Smoothie::DeferredRendering::IndirectLightingMaps::create()
 	barrier.srcAccessMask = 0;
 	barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
 	barrier.subresourceRange = _PrefImageCreateImageView.subresourceRange;
-	vkCmdPipelineBarrier(commandBuffer.buffer, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, 0, nullptr, 1, &barrier);
+	vkCmdPipelineBarrier(_commandBuffer, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, 0, nullptr, 1, &barrier);
 	_clearColorValue.float32[0] = 0.69f;
 	_clearColorValue.float32[1] = 0.69f;
 	_clearColorValue.float32[2] = 0.69f;
 	_clearColorValue.float32[3] = 1.0f;
-	vkCmdClearColorImage(commandBuffer.buffer, PrefilterMapImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &_clearColorValue, 1, &_PrefImageCreateImageView.subresourceRange);
+	vkCmdClearColorImage(_commandBuffer, PrefilterMapImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &_clearColorValue, 1, &_PrefImageCreateImageView.subresourceRange);
 	barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
 	barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 	barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
 	barrier.dstAccessMask = 0;
-	vkCmdPipelineBarrier(commandBuffer.buffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, 1, &barrier);
+	vkCmdPipelineBarrier(_commandBuffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, 1, &barrier);
 
-	endSingleTimeCommands(commandBuffer);
-
+	_immediateCommandBuffer.end();
+	_immediateCommandBuffer.submit();
+	_immediateCommandBuffer.destroy();
 
 	//**************************************** Descriptors ****************************************//
 	VkDescriptorSetLayoutBinding _IrradianceMapBidings{};
@@ -797,15 +810,15 @@ int Smoothie::DeferredRendering::IndirectLightingMaps::create_maps_from_skybox_c
 
 	VkPipelineShaderStageCreateInfo vertexShaderPipelineCreateInfo{};
 	vertexShaderPipelineCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-	vertexShaderPipelineCreateInfo.pName = "main";
+	vertexShaderPipelineCreateInfo.pName = "vertex_PBS_VERTEX";
 	vertexShaderPipelineCreateInfo.stage = VK_SHADER_STAGE_VERTEX_BIT;
-	vertexShaderPipelineCreateInfo.module = pbsVertexModule;
+	vertexShaderPipelineCreateInfo.module = m_ShaderModule;
 
 	VkPipelineShaderStageCreateInfo fragmentShaderPipelineCreateInfo{};
 	fragmentShaderPipelineCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-	fragmentShaderPipelineCreateInfo.pName = "main";
+	fragmentShaderPipelineCreateInfo.pName = "fragment_IRRADIANCE_MAP";
 	fragmentShaderPipelineCreateInfo.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
-	fragmentShaderPipelineCreateInfo.module = irradianceMapModule;
+	fragmentShaderPipelineCreateInfo.module = m_ShaderModule;
 
 	VkGraphicsPipelineCreateInfo _IrrMapPipelineCreateInfo{};
 	_IrrMapPipelineCreateInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
@@ -826,7 +839,11 @@ int Smoothie::DeferredRendering::IndirectLightingMaps::create_maps_from_skybox_c
 
 
 	//*************************************** Irradiance map Calculation ***************************************//
-	auto commandBuffer = beginSingleTimeCommands();
+	ImmediateCommandBuffer _immediateCommandBuffer;
+	_immediateCommandBuffer.create();
+	_immediateCommandBuffer.begin();
+	auto _commandBuffer = _immediateCommandBuffer.get_CommandBuffer();
+
 	VkImageMemoryBarrier _ToTransferOnlyBarrier{};
 	_ToTransferOnlyBarrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
 	_ToTransferOnlyBarrier.srcAccessMask = 0;
@@ -839,14 +856,14 @@ int Smoothie::DeferredRendering::IndirectLightingMaps::create_maps_from_skybox_c
 	_ToTransferOnlyBarrier.subresourceRange.levelCount = 1;
 	_ToTransferOnlyBarrier.subresourceRange.baseArrayLayer = 0;
 	_ToTransferOnlyBarrier.subresourceRange.layerCount = 6;
-	vkCmdPipelineBarrier(commandBuffer.buffer,
+	vkCmdPipelineBarrier(_commandBuffer,
 		VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0,
 		0, nullptr,
 		0, nullptr,
 		1, &_ToTransferOnlyBarrier);
 
 
-	vkCmdBindPipeline(commandBuffer.buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
+	vkCmdBindPipeline(_commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
 	VkViewport viewport = {};
 	viewport.x = 0.0f;
 	viewport.y = 0.0f;
@@ -854,13 +871,13 @@ int Smoothie::DeferredRendering::IndirectLightingMaps::create_maps_from_skybox_c
 	viewport.height = static_cast<float>(32);
 	viewport.minDepth = 0.0f;
 	viewport.maxDepth = 1.0f;
-	vkCmdSetViewport(commandBuffer.buffer, 0, 1, &viewport);
+	vkCmdSetViewport(_commandBuffer, 0, 1, &viewport);
 	VkRect2D scissor{};
 	scissor.offset = { 0, 0 };
 	scissor.extent = { 32, 32 };
-	vkCmdSetScissor(commandBuffer.buffer, 0, 1, &scissor);
+	vkCmdSetScissor(_commandBuffer, 0, 1, &scissor);
 	const auto __set = skyboxCubemap.getDescriptorSet();
-	vkCmdBindDescriptorSets(commandBuffer.buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &__set, 0, nullptr);
+	vkCmdBindDescriptorSets(_commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &__set, 0, nullptr);
 	for (int i = 0; i < 6; i++)
 	{
 
@@ -874,17 +891,17 @@ int Smoothie::DeferredRendering::IndirectLightingMaps::create_maps_from_skybox_c
 		beginInfo.pClearValues = &clearColor;
 		beginInfo.renderArea.extent = { 32, 32 };
 		beginInfo.renderArea.offset = { 0, 0 };
-		vkCmdBeginRenderPass(commandBuffer.buffer, &beginInfo, VK_SUBPASS_CONTENTS_INLINE);
-		vkCmdPushConstants(commandBuffer.buffer, pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(SmoothieMath::Matrix4x4), &viewMatrices[i]);
-		vkCmdDraw(commandBuffer.buffer, 36, 1, 0, 0);
-		vkCmdEndRenderPass(commandBuffer.buffer);
+		vkCmdBeginRenderPass(_commandBuffer, &beginInfo, VK_SUBPASS_CONTENTS_INLINE);
+		vkCmdPushConstants(_commandBuffer, pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(SmoothieMath::Matrix4x4), &viewMatrices[i]);
+		vkCmdDraw(_commandBuffer, 36, 1, 0, 0);
+		vkCmdEndRenderPass(_commandBuffer);
 
 		//Wait for all graphics to finish its work
 		VkMemoryBarrier _memory_barrier = {};
 		_memory_barrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
 		_memory_barrier.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
 		_memory_barrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
-		vkCmdPipelineBarrier(commandBuffer.buffer,
+		vkCmdPipelineBarrier(_commandBuffer,
 			VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT,
 			VK_PIPELINE_STAGE_TRANSFER_BIT,
 			0,
@@ -901,13 +918,13 @@ int Smoothie::DeferredRendering::IndirectLightingMaps::create_maps_from_skybox_c
 		copyRegions.dstSubresource.baseArrayLayer = i;
 		copyRegions.dstSubresource.layerCount = 1;
 		copyRegions.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-		vkCmdCopyImage(commandBuffer.buffer, _IrrMapTargetImage, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, IrradianceMapImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copyRegions);
+		vkCmdCopyImage(_commandBuffer, _IrrMapTargetImage, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, IrradianceMapImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copyRegions);
 	
 
 		//Wait for all copying to finish its work before drawing again
 		_memory_barrier.srcAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
 		_memory_barrier.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-		vkCmdPipelineBarrier(commandBuffer.buffer,
+		vkCmdPipelineBarrier(_commandBuffer,
 			VK_PIPELINE_STAGE_TRANSFER_BIT,
 			VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT,
 			0,
@@ -930,8 +947,9 @@ int Smoothie::DeferredRendering::IndirectLightingMaps::create_maps_from_skybox_c
 	__ToShaderReadOnlyBarrier.subresourceRange.levelCount = 1;
 	__ToShaderReadOnlyBarrier.subresourceRange.baseArrayLayer = 0;
 	__ToShaderReadOnlyBarrier.subresourceRange.layerCount = 6;
-	vkCmdPipelineBarrier(commandBuffer.buffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, nullptr, 0, nullptr, 1, &__ToShaderReadOnlyBarrier);
-	endSingleTimeCommands(commandBuffer);
+	vkCmdPipelineBarrier(_commandBuffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, nullptr, 0, nullptr, 1, &__ToShaderReadOnlyBarrier);
+	_immediateCommandBuffer.end();
+	_immediateCommandBuffer.submit();
 
 	//clean resources that are no longer needed
 	vkDestroyPipeline(SmoothieCore::getDevice(), pipeline, nullptr), pipeline = nullptr;
@@ -989,7 +1007,7 @@ int Smoothie::DeferredRendering::IndirectLightingMaps::create_maps_from_skybox_c
 		return 1;
 	}
 
-	fragmentShaderPipelineCreateInfo.module = prefilterMapModule;
+	fragmentShaderPipelineCreateInfo.pName = "fragment_PREFILTER";
 	_IrrMapPipelineCreateInfo.layout = pipelineLayout;
 
 	VkPipelineShaderStageCreateInfo __stages[2] = { vertexShaderPipelineCreateInfo, fragmentShaderPipelineCreateInfo };
@@ -1002,13 +1020,13 @@ int Smoothie::DeferredRendering::IndirectLightingMaps::create_maps_from_skybox_c
 
 	//*************************************** Prefilter map calculation ***************************************//
 
-	commandBuffer = beginSingleTimeCommands();
+	_immediateCommandBuffer.begin();
 	_ToTransferOnlyBarrier.image = PrefilterMapImage;
 	_ToTransferOnlyBarrier.oldLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 	_ToTransferOnlyBarrier.subresourceRange.levelCount = 5;
-	vkCmdPipelineBarrier(commandBuffer.buffer, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, 0, nullptr, 1, &_ToTransferOnlyBarrier);
-	vkCmdBindPipeline(commandBuffer.buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
-	vkCmdBindDescriptorSets(commandBuffer.buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &__set, 0, nullptr);
+	vkCmdPipelineBarrier(_commandBuffer, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, 0, nullptr, 1, &_ToTransferOnlyBarrier);
+	vkCmdBindPipeline(_commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
+	vkCmdBindDescriptorSets(_commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &__set, 0, nullptr);
 	for (int layer = 0; layer < 6; layer++)
 	{
 		for (unsigned int mip = 0; mip < tempImageMipChain.size(); mip++)
@@ -1025,7 +1043,7 @@ int Smoothie::DeferredRendering::IndirectLightingMaps::create_maps_from_skybox_c
 			beginInfo.pClearValues = &clearColor;
 			beginInfo.renderArea.extent = { mipWidth, mipWidth };
 			beginInfo.renderArea.offset = { 0, 0 };
-			vkCmdBeginRenderPass(commandBuffer.buffer, &beginInfo, VK_SUBPASS_CONTENTS_INLINE);
+			vkCmdBeginRenderPass(_commandBuffer, &beginInfo, VK_SUBPASS_CONTENTS_INLINE);
 
 			VkViewport viewport = {};
 			viewport.x = 0.0f;
@@ -1034,11 +1052,11 @@ int Smoothie::DeferredRendering::IndirectLightingMaps::create_maps_from_skybox_c
 			viewport.height = static_cast<float>(mipWidth);
 			viewport.minDepth = 0.0f;
 			viewport.maxDepth = 1.0f;
-			vkCmdSetViewport(commandBuffer.buffer, 0, 1, &viewport);
+			vkCmdSetViewport(_commandBuffer, 0, 1, &viewport);
 			VkRect2D scissor{};
 			scissor.offset = { 0, 0 };
 			scissor.extent = { mipWidth, mipWidth };
-			vkCmdSetScissor(commandBuffer.buffer, 0, 1, &scissor);
+			vkCmdSetScissor(_commandBuffer, 0, 1, &scissor);
 
 			struct PrefilterPushConstantHelper
 			{
@@ -1049,17 +1067,17 @@ int Smoothie::DeferredRendering::IndirectLightingMaps::create_maps_from_skybox_c
 			PrefilterPushConstantHelper __helper;
 			__helper.roughness = (float)mip / (float)(mipChainFramebuffers.size() - 1);
 			__helper.view = viewMatrices[layer];
-			vkCmdPushConstants(commandBuffer.buffer, pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(PrefilterPushConstantHelper), &__helper);
+			vkCmdPushConstants(_commandBuffer, pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(PrefilterPushConstantHelper), &__helper);
 
-			vkCmdDraw(commandBuffer.buffer, 36, 1, 0, 0);
-			vkCmdEndRenderPass(commandBuffer.buffer);
+			vkCmdDraw(_commandBuffer, 36, 1, 0, 0);
+			vkCmdEndRenderPass(_commandBuffer);
 
 			//Wait for all graphics to finish its work
 			VkMemoryBarrier _memory_barrier = {};
 			_memory_barrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
 			_memory_barrier.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
 			_memory_barrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
-			vkCmdPipelineBarrier(commandBuffer.buffer,
+			vkCmdPipelineBarrier(_commandBuffer,
 				VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT,
 				VK_PIPELINE_STAGE_TRANSFER_BIT,
 				0,
@@ -1078,13 +1096,13 @@ int Smoothie::DeferredRendering::IndirectLightingMaps::create_maps_from_skybox_c
 			copyRegions.dstSubresource.layerCount = 1;
 			copyRegions.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
 			copyRegions.dstSubresource.mipLevel = mip;
-			vkCmdCopyImage(commandBuffer.buffer, tempImageMipChain[mip].image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, PrefilterMapImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copyRegions);
+			vkCmdCopyImage(_commandBuffer, tempImageMipChain[mip].image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, PrefilterMapImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copyRegions);
 		
 
 			//Wait for all copying to finish its work before drawing again
 			_memory_barrier.srcAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
 			_memory_barrier.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-			vkCmdPipelineBarrier(commandBuffer.buffer,
+			vkCmdPipelineBarrier(_commandBuffer,
 				VK_PIPELINE_STAGE_TRANSFER_BIT,
 				VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT,
 				0,
@@ -1098,8 +1116,10 @@ int Smoothie::DeferredRendering::IndirectLightingMaps::create_maps_from_skybox_c
 
 	__ToShaderReadOnlyBarrier.image = PrefilterMapImage;
 	__ToShaderReadOnlyBarrier.subresourceRange.levelCount = 5;
-	vkCmdPipelineBarrier(commandBuffer.buffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, nullptr, 0, nullptr, 1, &__ToShaderReadOnlyBarrier);
-	endSingleTimeCommands(commandBuffer);
+	vkCmdPipelineBarrier(_commandBuffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, nullptr, 0, nullptr, 1, &__ToShaderReadOnlyBarrier);
+	_immediateCommandBuffer.end();
+	_immediateCommandBuffer.submit();
+	_immediateCommandBuffer.destroy();
 
 
 	//Cleanup 

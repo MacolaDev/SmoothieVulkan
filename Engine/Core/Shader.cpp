@@ -1,421 +1,213 @@
 #include "Shader.h"
+
+#include <cassert>
 #include <iostream>
 #include <fstream>
 #include "SmoothieCore.h"
 #include <filesystem>
 #include <mutex>
-#include "ResourceManager/ShaderFile.h"
-#include <algorithm>
+#include <cstring>
 
 using namespace Smoothie;
 
-int Smoothie::get_VkFormat_from_ModelDescriptorDataType(ModelDescriptorDataType type, VkFormat& result, unsigned int& format_size)
+int ShaderFile::serialize(std::ofstream& data){return 0;}
+
+
+static int _read_std_string(std::ifstream &data, std::string& str)
 {
-	switch (type)
-	{
-	case MODEL_DESCRIPTOR_DATA_TYPE_BYTE:
-		result = VK_FORMAT_R8_SINT;
-		format_size = 1;
-		break;
-	case MODEL_DESCRIPTOR_DATA_TYPE_UNSIGNED_BYTE:
-		result = VK_FORMAT_R8_UINT;
-		format_size = 1;
-		break;
-	case MODEL_DESCRIPTOR_DATA_TYPE_SHORT:
-		result = VK_FORMAT_R16_SINT;
-		format_size = 2;
-		break;
-	case MODEL_DESCRIPTOR_DATA_TYPE_UNSIGNED_SHORT:
-		result = VK_FORMAT_R16_UINT;
-		format_size = 2;
-		break;
+	unsigned int _str_len = 0;
+	if (!data.read(reinterpret_cast<std::ostream::char_type *>(&_str_len), sizeof(_str_len))) return 1;
 
-
-	case MODEL_DESCRIPTOR_DATA_TYPE_FLOAT:
-		result = VK_FORMAT_R32_SFLOAT;
-		format_size = 4;
-		break;
-
-	case MODEL_DESCRIPTOR_DATA_TYPE_FLOAT_VEC2:
-		result = VK_FORMAT_R32G32_SFLOAT;
-		format_size = 8;
-		break;
-	case MODEL_DESCRIPTOR_DATA_TYPE_FLOAT_VEC3:
-		result = VK_FORMAT_R32G32B32_SFLOAT;
-		format_size = 12;
-		break;
-
-	case MODEL_DESCRIPTOR_DATA_TYPE_FLOAT_VEC4:
-		result = VK_FORMAT_R32G32B32A32_SFLOAT;
-		format_size = 16;
-		break;
-
-
-	case MODEL_DESCRIPTOR_DATA_TYPE_DOUBLE:
-		result = VK_FORMAT_R64_SFLOAT;
-		format_size = 8;
-		break;
-	case MODEL_DESCRIPTOR_DATA_TYPE_DOUBLE_VEC2:
-		result = VK_FORMAT_R64G64_SFLOAT;
-		format_size = 16;
-		break;
-	case MODEL_DESCRIPTOR_DATA_TYPE_DOUBLE_VEC3:
-		result = VK_FORMAT_R64G64B64_SFLOAT;
-		format_size = 24;
-		break;
-	case MODEL_DESCRIPTOR_DATA_TYPE_DOUBLE_VEC4:
-		result = VK_FORMAT_R64G64B64A64_SFLOAT;
-		format_size = 32;
-		break;
-
-
-	case MODEL_DESCRIPTOR_DATA_TYPE_INT:
-		result = VK_FORMAT_R32_SINT;
-		format_size = 4;
-		break;
-	case MODEL_DESCRIPTOR_DATA_TYPE_INT_VEC2:
-		result = VK_FORMAT_R32G32_SINT;
-		format_size = 8;
-		break;
-	case MODEL_DESCRIPTOR_DATA_TYPE_INT_VEC3:
-		result = VK_FORMAT_R32G32B32_SINT;
-		format_size = 12;
-		break;
-	case MODEL_DESCRIPTOR_DATA_TYPE_INT_VEC4:
-		result = VK_FORMAT_R32G32B32A32_SINT;
-		format_size = 16;
-		break;
-
-
-	case MODEL_DESCRIPTOR_DATA_TYPE_UNSIGNED_INT:
-		result = VK_FORMAT_R32_UINT;
-		format_size = 4;
-		break;
-	case MODEL_DESCRIPTOR_DATA_TYPE_UNSIGNED_INT_VEC2:
-		result = VK_FORMAT_R32G32_UINT;
-		format_size = 8;
-		break;
-	case MODEL_DESCRIPTOR_DATA_TYPE_UNSIGNED_INT_VEC3:
-		result = VK_FORMAT_R32G32B32_UINT;
-		format_size = 12;
-		break;
-	case MODEL_DESCRIPTOR_DATA_TYPE_UNSIGNED_INT_VEC4:
-		result = VK_FORMAT_R32G32B32A32_UINT;
-		format_size = 16;
-		break;
-
-	default:
-		return 1;
-	}
+	str.resize(_str_len);
+	if (!data.read(str.data(), _str_len)) return 1;
 
 	return 0;
 }
 
-int Smoothie::Add_system_shader(const std::string& shaderFile, std::unordered_map<std::string, VkShaderModule>& modules)
+static int _read_Variable(std::ifstream& data, Variable& variable)
 {
-	if (!std::filesystem::exists(shaderFile))
-	{
-		std::cout << "No file named: " << shaderFile << std::endl;
-		return 1;
-	}
-
-	size_t file_size = std::filesystem::file_size(shaderFile);
-	std::vector<char> binary_data(file_size);
-	auto file = std::ifstream(shaderFile, std::ios_base::binary);
-	file.read(binary_data.data(), file_size);
-	file.close();
-
-	_ShaderFile_file_data file_data;
-	if (file_data.get_object_from_buffer(binary_data) != 0)
-	{
-		std::cout << "Failed to parse file: " << shaderFile << std::endl;
-		return 1;
-	}
-
-	for (const auto& shader : file_data.shaders)
-	{
-		if (modules.find(shader.shader_name) != modules.end())
-		{
-			std::cout << "System shader with name: " << shader.shader_name << " already exists and its loaded into memory!" << std::endl;
-			return 1;
-		}
-		
-		
-		VkShaderModuleCreateInfo createInfo{};
-		createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
-		createInfo.codeSize = shader.SPIRV_data.size() * 4;
-		createInfo.pCode = shader.SPIRV_data.data();
-		VkShaderModule __shader__module = nullptr;
-		if (vkCreateShaderModule(SmoothieCore::getDevice(), &createInfo, nullptr, &__shader__module) != VK_SUCCESS)
-		{
-			std::cout << "Failed to create VkShaderModule from provided SPIR-V data!" << std::endl;
-			return 1;
-		}
-
-		modules[shader.shader_name] = __shader__module;
-
-	}
+	if (!data.read(reinterpret_cast<std::istream::char_type *>(&variable.location_offset_in), sizeof(variable.location_offset_in))) return 1;
+	if (!data.read(reinterpret_cast<std::istream::char_type *>(&variable.location_offset_out), sizeof(variable.location_offset_out))) return 1;
+	if (!data.read(reinterpret_cast<std::istream::char_type *>(&variable.uniform_offset), sizeof(variable.uniform_offset))) return 1;
+	if (!data.read(reinterpret_cast<std::istream::char_type *>(&variable.bindings_offset), sizeof(variable.bindings_offset))) return 1;
+	if (!data.read(reinterpret_cast<std::istream::char_type *>(&variable.flags), sizeof(variable.flags))) return 1;
+	if (_read_std_string(data, variable.name) != 0) return 1;
+	if (_read_std_string(data, variable.type) != 0) return 1;
 
 	return 0;
 }
 
-static int getShaderModuleFromFile(const _ShaderModule_file_data& file_data, ShaderModule& shader_module)
+static int _read_Variable_Global(std::ifstream& data, Variable_Global& variable)
 {
-	//Create shader module
-	VkShaderModuleCreateInfo createInfo{};
-	createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
-	createInfo.codeSize = file_data.SPIRV_data.size() * 4;
-	createInfo.pCode = file_data.SPIRV_data.data();
-	if (vkCreateShaderModule(SmoothieCore::getDevice(), &createInfo, nullptr, &shader_module.shader_module) != VK_SUCCESS)
-	{
-		std::cout << "Failed to create VkShaderModule from provided SPIR-V data!" << std::endl;
-		return 1;
-	}
-
-	//Reflections
-	for (size_t i = 0; i < file_data.reflections_count; i++)
-	{
-		const auto& file_reflection = file_data.reflections[i];
-
-		ShaderObjectReflection reflection;
-		reflection.offset = file_reflection.offset;
-		reflection.type = file_reflection.data_type;
-		reflection.size = file_reflection.size;
-		reflection.index = file_reflection.index;
-		reflection.counterIndex = file_reflection.counterIndex;
-		reflection.numMembers = file_reflection.numMembers;
-		reflection.arrayStride = file_reflection.arrayStride;
-		reflection.topLevelArraySize = file_reflection.topLevelArraySize;
-		reflection.topLevelArrayStride = file_reflection.topLevelArrayStride;
-		reflection.stages = static_cast<VkShaderStageFlagBits>(file_reflection.stages);
-		
-		reflection.location = file_reflection.location;
-		reflection.binding = file_reflection.binding;
-		reflection.set = file_reflection.set;
-
-		reflection.owning_set = file_reflection.owning_set;
-		reflection.owning_set_binding = file_reflection.owning_set_binding;
-
-		reflection.name = file_reflection.name;
-
-		using RFT = _Reflection_type_file_data;
-		if (file_reflection.reflection_type == RFT::PIPE_INPUT)
-		{
-			shader_module.pipe_inputs.push_back(reflection);
-		}
-		else if (file_reflection.reflection_type == RFT::PIPE_OUTPUT)
-		{
-			shader_module.pipe_outputs.push_back(reflection);
-		}
-		else if (
-			(file_reflection.reflection_type == RFT::UNIFORM_BLOCK) || 
-			(file_reflection.reflection_type == RFT::UNIFORM_VARIABLE) ||
-			(file_reflection.reflection_type == RFT::STORAGE_BLOCK) || 
-			(file_reflection.reflection_type == RFT::STORAGE_VARIABLE)
-			)
-		{
-			shader_module.reflections.push_back(reflection);
-		}
-		else
-		{
-			return 1;
-		}
-	}
+	if (!data.read(reinterpret_cast<std::istream::char_type *>(&variable.set), sizeof(variable.set))) return 1;
+	if (!data.read(reinterpret_cast<std::istream::char_type *>(&variable.binding), sizeof(variable.binding))) return 1;
+	if (!data.read(reinterpret_cast<std::istream::char_type *>(&variable.stage), sizeof(variable.stage))) return 1;
+	if (!data.read(reinterpret_cast<std::istream::char_type *>(&variable.flags), sizeof(variable.flags))) return 1;
+	if (_read_std_string(data, variable.name) != 0) return 1;
+	if (_read_std_string(data, variable.type) != 0) return 1;
 	return 0;
 }
 
-static std::mutex mutex;
+int ShaderFile::de_serialize(std::ifstream& file)
+{
+	unsigned int _filePtr = 0;
+
+	char _magic[4] = {0};
+	if (!file.read(_magic, sizeof(_magic))) return 1;
+	if (std::memcmp(_magic, s_Magic, sizeof(_magic)) != 0) return 1;
+
+	unsigned int _spir_v_quads_size = 0;
+	if (!file.read(reinterpret_cast<std::istream::char_type *>(&_spir_v_quads_size), sizeof(_spir_v_quads_size))) return 1;
+
+	m_SPIR_V_CODE.resize(_spir_v_quads_size);
+	if (!file.read(reinterpret_cast<std::istream::char_type *>(m_SPIR_V_CODE.data()), _spir_v_quads_size * sizeof(unsigned int))) return 1;
+
+	unsigned int _entry_points_count = 0;
+	if (!file.read(reinterpret_cast<std::istream::char_type *>(&_entry_points_count), sizeof(_entry_points_count))) return 1;
+
+	m_EntryPoints.resize(_entry_points_count);
+	for (unsigned int i = 0; i < _entry_points_count; i++)
+	{
+		auto& _entry_point = m_EntryPoints[i];
+		if (!file.read(reinterpret_cast<std::istream::char_type *>(&_entry_point.flags), sizeof(_entry_point.flags))) return 1;
+		if (!file.read(reinterpret_cast<std::istream::char_type *>(&_entry_point.stage), sizeof(_entry_point.stage))) return 1;
+		if (_read_std_string(file, _entry_point.pipeline) != 0) return 1;
+		if (_read_Variable(file, _entry_point.returnVariable) != 0) return 1;
+		if (_read_std_string(file, _entry_point.name) != 0) return 1;
+
+		unsigned int _inputVariables_count = 0;
+		if (!file.read(reinterpret_cast<std::istream::char_type *>(&_inputVariables_count), sizeof(_inputVariables_count))) return 1;
+		_entry_point.inputVariables.resize(_inputVariables_count);
+		for (unsigned int k = 0; k < _inputVariables_count; k++)
+		{
+			if (_read_Variable(file, _entry_point.inputVariables[k]) != 0) return 1;
+		}
+
+	}
+
+
+	unsigned int _global_variables_count = 0;
+	if (!file.read(reinterpret_cast<std::istream::char_type *>(&_global_variables_count), sizeof(_global_variables_count))) return 1;
+	m_GlobalVariables.resize(_global_variables_count);
+	for (unsigned int i = 0; i < _global_variables_count; i++)
+	{
+		if (_read_Variable_Global(file, m_GlobalVariables[i]) != 0) return 1;
+	}
+
+	unsigned int _types_count = 0;
+	m_Types.reserve(_types_count);
+	if (!file.read(reinterpret_cast<std::istream::char_type *>(&_types_count), sizeof(_types_count))) return 1;
+	for (int _index = 0; _index < _types_count; _index++)
+	{
+
+		Shader_Type_Kind _kind;
+		std::string _name;
+		if (!file.read(reinterpret_cast<std::istream::char_type *>(&_kind), sizeof(_kind))) return 1;
+		if (_read_std_string(file, _name) != 0) return 1;
+
+		switch (_kind)
+		{
+			case Shader_Type_Kind::Uniform:
+			{
+				auto _newType = std::make_shared<Shader_Type_Uniform>();
+				if (!file.read(reinterpret_cast<std::istream::char_type *>(&_newType->builtinType), sizeof(_newType->builtinType))) return 1;
+				if (_read_std_string(file, _newType->userType) != 0) return 1;
+				if (!file.read(reinterpret_cast<std::istream::char_type *>(&_newType->subclass), sizeof(_newType->subclass))) return 1;
+				if (!file.read(reinterpret_cast<std::istream::char_type *>(&_newType->sizeX), sizeof(_newType->sizeX))) return 1;
+				if (!file.read(reinterpret_cast<std::istream::char_type *>(&_newType->sizeY), sizeof(_newType->sizeY))) return 1;
+				m_Types.insert({std::move(_name), std::reinterpret_pointer_cast<Shader_Type_Base>(_newType)});
+
+			}break;
+
+			case Shader_Type_Kind::Resource:
+			{
+				auto _newType = std::make_shared<Shader_Type_Resource>();
+				if (!file.read(reinterpret_cast<std::istream::char_type *>(&_newType->flags), sizeof(_newType->flags))) return 1;
+				if (!file.read(reinterpret_cast<std::istream::char_type *>(&_newType->access), sizeof(_newType->access))) return 1;
+				if (!file.read(reinterpret_cast<std::istream::char_type *>(&_newType->shape), sizeof(_newType->shape))) return 1;
+				if (!file.read(reinterpret_cast<std::istream::char_type *>(&_newType->shape_flags), sizeof(_newType->shape_flags))) return 1;
+				if (_read_std_string(file, _newType->result_type) != 0) return 1;
+				m_Types.insert({std::move(_name), std::reinterpret_pointer_cast<Shader_Type_Base>(_newType)});
+
+			}break;
+
+			case Shader_Type_Kind::Struct:
+			{
+				auto _newType = std::make_shared<Shader_Type_Struct>();
+				unsigned int _struct_member_count = 0;
+				if (!file.read(reinterpret_cast<std::istream::char_type *>(&_struct_member_count), sizeof(_struct_member_count))) return 1;
+				_newType->members.resize(_struct_member_count);
+				for (unsigned int k = 0; k < _struct_member_count; k++)
+				{
+					if (_read_Variable(file, _newType->members[k]) != 0) return 1;
+				}
+
+				m_Types.insert({std::move(_name), std::reinterpret_pointer_cast<Shader_Type_Base>(_newType)});
+			}break;
+
+
+			default:
+				break;
+		}
+
+	}
+
+
+	return 0;
+}
+
 int Smoothie::ShaderFile::create(const std::string& shaderFile)
 {
-	std::lock_guard<std::mutex> lock(mutex);
-	this->filepath = shaderFile;
-
-	if (!std::filesystem::exists(filepath))
+	m_Filepath = shaderFile;
+	if (!std::filesystem::exists(m_Filepath))
 	{
-		std::cout << "No file named: " << filepath << std::endl;
+		std::cout << "No file named: " << m_Filepath << std::endl;
 		return 1;
 	}
 
-	size_t file_size = std::filesystem::file_size(filepath);
+	const auto file_size = std::filesystem::file_size(m_Filepath);
 	std::vector<char> binary_data(file_size);
-	auto file = std::ifstream(filepath, std::ios_base::binary);
-	file.read(binary_data.data(), file_size);
-	file.close();
-	
-	_ShaderFile_file_data file_data;
-	if (file_data.get_object_from_buffer(binary_data) != 0)
+	auto file = std::ifstream(m_Filepath, std::ios_base::binary);
+
+	if (de_serialize(file) != 0)
 	{
-		std::cout << "Failed to parse file: " << filepath << std::endl;
+		std::cout << "Failed to parse file: " << m_Filepath << std::endl;
+		file.close();
+		return 1;
+	}
+	file.close();
+
+	VkShaderModuleCreateInfo shaderModuleCreateInfo{};
+	shaderModuleCreateInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+	shaderModuleCreateInfo.codeSize = m_SPIR_V_CODE.size() * sizeof(uint32_t);
+	assert(shaderModuleCreateInfo.codeSize != 0);
+	shaderModuleCreateInfo.pCode = m_SPIR_V_CODE.data();
+	assert(shaderModuleCreateInfo.pCode != nullptr);
+	shaderModuleCreateInfo.pNext = nullptr;
+	shaderModuleCreateInfo.flags = 0;
+
+	if (
+		!static_cast<int>(m_Flags ^ ShaderFile_CreateFlags::DontCreateModule) &&
+		vkCreateShaderModule(SmoothieCore::getDevice(), &shaderModuleCreateInfo, nullptr, &m_ShaderModule) != VK_SUCCESS)
+	{
+		std::cout << "Failed to create system shader module!" << std::endl;
 		return 1;
 	}
 
-	for (const auto& shader : file_data.shaders)
+	if (!static_cast<int>(m_Flags ^ ShaderFile_CreateFlags::Hold_SPIR_V))
 	{
-		if (getShaderModuleFromFile(shader, shaders[{shader.shader_name, static_cast<VkShaderStageFlagBits>(shader.shader_stage)}]) != 0) return 1;
+		m_SPIR_V_CODE.clear();
 	}
+
 	return 0;
 }
 
 void Smoothie::ShaderFile::destroy()
 {
-	for (auto& [key, shader]: shaders)
+	if (m_ShaderModule != nullptr)
 	{
-		vkDestroyShaderModule(SmoothieCore::getDevice(), shader.shader_module, nullptr);
-		shader.shader_module = nullptr;
-		shader.shader_stage = VK_SHADER_STAGE_FLAG_BITS_MAX_ENUM;
-		shader.pipe_inputs.clear();
-		shader.pipe_outputs.clear();
+		vkDestroyShaderModule(SmoothieCore::getDevice(), m_ShaderModule, nullptr);
+		m_ShaderModule = nullptr;
 	}
-	shaders.clear();
 }
 
-int Smoothie::ShaderFile::get_pipeline_data_shaders(const std::string& identifier, VkShaderStageFlagBits stage, VkPipelineShaderStageCreateInfo& createInfo) const
-{
-	SearchKey key;
-	key.name = identifier;
-	key.stage = stage;
-	if (auto search = shaders.find(key); search != shaders.end())
-	{
-		const auto& shader = shaders.at(key);
-		createInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-		createInfo.pName = "main";
-		createInfo.stage = stage;
-		createInfo.module = shader.shader_module;
-		return 0;
-	}
-
-	std::cout << "Failed to get the shader stage!" << identifier << std::endl;
-	return 1;
-}
-
-int Smoothie::ShaderFile::get_pipeline_data_shaders(const std::string& identifier, VkShaderStageFlagBits stage, std::vector<VkPipelineShaderStageCreateInfo>& createInfos) const
-{
-	SearchKey key;
-	key.name = identifier;
-	key.stage = stage;
-	if (auto search = shaders.find(key); search != shaders.end())
-	{
-		const auto& shader = shaders.at(key);
-		VkPipelineShaderStageCreateInfo createInfo{};
-		createInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-		createInfo.pName = "main";
-		createInfo.stage = stage;
-		createInfo.module = shader.shader_module;
-		createInfos.push_back(createInfo);
-		return 0;
-	}
-	return 1;
-}
-
-static bool _compare(const ShaderObjectReflection& first, const ShaderObjectReflection& last)
-{
-	if (first.binding == last.binding) return first.location < last.location;
-	return first.binding < first.binding;
-}
-
-int Smoothie::ShaderFile::get_pipeline_data_vertex_stage_data(const std::string& identifier, std::vector<VkVertexInputBindingDescription>& vertexShaderBindingDescriptions, std::vector<VkVertexInputAttributeDescription>& vertexShaderAttributeDescriptions) const
-{
-	SearchKey key;
-	key.name = identifier;
-	key.stage = VK_SHADER_STAGE_VERTEX_BIT;
-	if (auto search = shaders.find(key); search != shaders.end())
-	{
-		std::vector<ShaderObjectReflection> pipe_inputs = shaders.at(key).pipe_inputs;
-		vertexShaderAttributeDescriptions.resize(pipe_inputs.size());
-
-		//Sort firstly by binding then by location
-		std::sort(pipe_inputs.begin(), pipe_inputs.end(), _compare);
-		int offset = 0;
-
-		//Case where there is only one shader entry
-		if (pipe_inputs.size() == 1)
-		{
-			VkVertexInputAttributeDescription description{};
-			description.location = 0;
-			description.binding = 0;
-			description.offset = 0;
-			unsigned int type_size = 0;
-			if (get_VkFormat_from_ModelDescriptorDataType(pipe_inputs[0].type, description.format, type_size) != 0)
-			{
-				std::cout << "Unsoported data format for Vertex Attribute input: " << pipe_inputs[0].type << std::endl;
-				return 1;
-			}
-			vertexShaderAttributeDescriptions[0] = description;
-			
-			VkVertexInputBindingDescription __description{};
-			__description.binding = 0;
-			__description.stride = type_size;
-			__description.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
-			vertexShaderBindingDescriptions.push_back(__description);
-			return 0;
-		}
-
-		for (size_t i = 0; i < pipe_inputs.size() - 1; i++)
-		{
-			const auto& input = pipe_inputs[i];
-			const auto& next = pipe_inputs[i + 1];
-			unsigned int binding = (input.binding == -1) ? 0 : input.binding;
-			
-			VkVertexInputAttributeDescription description{};
-			description.location = input.location;
-			description.binding = binding;
-			description.offset = offset;
-			unsigned int type_size = 0;
-			if (get_VkFormat_from_ModelDescriptorDataType(input.type, description.format, type_size) != 0)
-			{
-				std::cout << "Unsoported data format for Vertex Attribute input: " << input.type << std::endl;
-				return 1;
-			}
-			offset += type_size;
-			
-			vertexShaderAttributeDescriptions[i] = description;
-
-			if (input.binding != next.binding) 
-			{
-				VkVertexInputBindingDescription __description{};
-				__description.binding = binding;
-				__description.stride = offset;
-				__description.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
-				vertexShaderBindingDescriptions.push_back(__description);
-				offset = 0;
-			}
-		}
-
-		//Last one also needs to be included
-		const auto& last = pipe_inputs.back();
-		VkVertexInputAttributeDescription description{};
-		description.location = last.location;
-		description.binding = (last.binding == -1) ? 0 : last.binding;
-		description.offset = offset;
-		unsigned int type_size = 0;
-		if (get_VkFormat_from_ModelDescriptorDataType(last.type, description.format, type_size) != 0)
-		{
-			std::cout << "Unsoported data format for Vertex Attribute input: " << last.type << std::endl;
-			return 1;
-		}
-		offset += type_size;
-		vertexShaderAttributeDescriptions[pipe_inputs.size() - 1] = description;
-		VkVertexInputBindingDescription __description{};
-		__description.binding = (last.binding == -1) ? 0 : last.binding;
-		__description.stride = offset;
-		__description.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
-		vertexShaderBindingDescriptions.push_back(__description);
-
-		return 0;
-
-	}
-	std::cout << "No vertex shader with identifier: " << identifier << std::endl;
-	return 1;
-}
-
-bool Smoothie::ShaderFile::SearchKey::operator==(const SearchKey& other) const
-{
-	return (other.name == name) && (other.stage == stage);
-}
-
-std::size_t Smoothie::ShaderFile::SearchKeyHash::operator()(const SearchKey& p) const
-{
-	std::size_t h1 = std::hash<std::string>{}(p.name);
-	std::size_t h2 = std::hash<int>{}(p.stage);
-	return h1;
-}

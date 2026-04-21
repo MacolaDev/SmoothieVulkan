@@ -5,18 +5,17 @@
 #include <vulkan/vulkan.h>
 #include <memory>
 #include <vector>
-#include "ResourceManager/ResourceHandler.h"
 #include "vk_mem_alloc.h"
 
 
 namespace Smoothie 
 {
 
-	class Mesh : public ResourceHandler<Mesh>
+	class Mesh
 	{
 	public:
-		int create(const std::string& filepath) override;
-		void destroy() override;
+		int create(const std::string& filepath);
+		void destroy();
 		std::string filepath;
 		VkBuffer vertexBuffer = nullptr;
 		VmaAllocation vertexBufferAllocation = nullptr;

@@ -5,65 +5,63 @@
 #include "Core/RenderPass.h"
 #include "Core/CameraDescriptor.h"
 #include "Core/Pipeline.h"
-#include "Core/Image.h"
 
 
 #include <limits>
 #include <random>
 #include <mutex>
+#include <iostream>
 
 using namespace Smoothie;
 using namespace SmoothieMath;
 using namespace Smoothie::XML;
 
-int Smoothie::ModelFile::create(const std::string& _model_file)
+int Smoothie::ModelFile::create()
 {
-	this->model_file = _model_file;
-
-	Element rootElement;
-	XMLError error;
-	if (build_tree_from_xml_file(model_file, rootElement, error) != 0)
+	Element _rootElement;
+	XMLError _error;
+	if (build_tree_from_xml_file(m_modelFile, _rootElement, _error) != 0)
 	{
-		std::cout << "Failed to parse: " << model_file << std::endl;
+		std::cout << "Failed to parse: " << m_modelFile << std::endl;
 		return 1;
 	}
 
-	if (rootElement.hasChild("geometryFile") != true)
+	if (_rootElement.hasChild("geometryFile") != true)
 	{
-		std::cout << "No geometry file element in file: " << model_file << std::endl;
+		std::cout << "No geometry file element in file: " << m_modelFile << std::endl;
 		return 1;
 	}
-	geometry_file = rootElement.getChild("geometryFile").textContent;
+	m_geometryFile = _rootElement.getChild("geometryFile").textContent;
 	
 	//Shader
-	if (rootElement.hasChild("shader") != true)
+	if (_rootElement.hasChild("shader") != true)
 	{
-		std::cout << "No shader file element in file: " << model_file << std::endl;
+		std::cout << "No shader file element in file: " << m_modelFile << std::endl;
 		return 1;
 	}
-	shader_file = rootElement.getChild("shader").textContent;
+	m_shaderFile = _rootElement.getChild("shader").textContent;
 
 	//properties
-	model_properties = rootElement.getChild("property").children;
+	m_modelProperties = _rootElement.getChild("property").children;
 	
 	//Bounding box 
-	const Element& boundingBoxElement = rootElement.getChild("BoundingBox");
-	if (boundingBoxElement.hasChild("min"))
+	const Element& _boundingBoxElement = _rootElement.getChild("BoundingBox");
+	if (_boundingBoxElement.hasChild("min"))
 	{
-		bbMin = boundingBoxElement.getChild("min").getVector3();
+		m_bbMin = _boundingBoxElement.getChild("min").getVector3();
 	}
 	else
 	{
-		bbMin = { 0.0f, 0.0f, 0.0f };
+		m_bbMin = { 0.0f, 0.0f, 0.0f };
 	}
 
-	if (boundingBoxElement.hasChild("max"))
+	if (_boundingBoxElement.hasChild("max"))
 	{
-		bbMax = boundingBoxElement.getChild("max").getVector3();
+		m_bbMax = _boundingBoxElement.getChild("max").getVector3();
 	}
 	else
 	{
-		bbMax = { 1.0f, 1.0f, 1.0f };
+		m_bbMax = { 1.0f, 1.0f, 1.0f };
 	}
 
 	return 0;

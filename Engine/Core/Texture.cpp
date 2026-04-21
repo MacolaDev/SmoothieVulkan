@@ -4,9 +4,9 @@
 #include <stb_image.h>
 
 #include "Core/Constants.h"
-#include "Core/Image.h"
 #include "Core/SmoothieCore.h"
 #include "Core/Multithreading.h"
+#include <iostream>
 
 using namespace Smoothie;
 
@@ -96,9 +96,9 @@ static int loadImageSTB
 		stbi_image_free(data);
 	}
 
-	transitionImageLayout(image, createImage.format, createImage.initialLayout, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, mipLevels);
-	copyBufferToImage(stagingBuffer, image, static_cast<uint32_t>(width), static_cast<uint32_t>(height));
-	generateMipmaps(image, static_cast<uint32_t>(width), static_cast<uint32_t>(height), mipLevels);
+	// transitionImageLayout(image, createImage.format, createImage.initialLayout, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, mipLevels);
+	// copyBufferToImage(stagingBuffer, image, static_cast<uint32_t>(width), static_cast<uint32_t>(height));
+	// generateMipmaps(image, static_cast<uint32_t>(width), static_cast<uint32_t>(height), mipLevels);
 	//transitionImageLayout(image.image, createImage.format, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, mipLevels);
 
 
@@ -189,16 +189,21 @@ int Smoothie::DefaultTexture2D::create()
 		return 1;
 	}
 
-	
-	auto commandBuffer = beginSingleTimeCommands();
+	ImmediateCommandBuffer _gpuWorkData;
+	if (_gpuWorkData.create() != 0)
+	{
+		std::cout << "Failed to create GPU work data" << std::endl;
+		return 1;
+	}
+	_gpuWorkData.begin();
+	VkCommandBuffer _commandBuffer = _gpuWorkData.get_CommandBuffer();
 
-
-	VkImageSubresourceRange __imageSubresorseRange{};
-	__imageSubresorseRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-	__imageSubresorseRange.baseMipLevel = 0;
-	__imageSubresorseRange.levelCount = 1;
-	__imageSubresorseRange.baseArrayLayer = 0;
-	__imageSubresorseRange.layerCount = 1;
+	VkImageSubresourceRange _imageSubresourseRange{};
+	_imageSubresourseRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+	_imageSubresourseRange.baseMipLevel = 0;
+	_imageSubresourseRange.levelCount = 1;
+	_imageSubresourseRange.baseArrayLayer = 0;
+	_imageSubresourseRange.layerCount = 1;
 	
 
 	VkImageMemoryBarrier barrier{};
@@ -211,9 +216,9 @@ int Smoothie::DefaultTexture2D::create()
 	barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
 
 	barrier.image = image;
-	barrier.subresourceRange = __imageSubresorseRange;
+	barrier.subresourceRange = _imageSubresourseRange;
 
-	vkCmdPipelineBarrier(commandBuffer.buffer,
+	vkCmdPipelineBarrier(_commandBuffer,
 		VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
 		0,
 		0, nullptr,
@@ -227,13 +232,13 @@ int Smoothie::DefaultTexture2D::create()
 	_clearColorValue.float32[2] = 0.69f;
 	_clearColorValue.float32[3] = 1.0f;
 
-	vkCmdClearColorImage(commandBuffer.buffer, image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &_clearColorValue, 1, &__imageSubresorseRange);
+	vkCmdClearColorImage(_commandBuffer, image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &_clearColorValue, 1, &_imageSubresourseRange);
 	
 	barrier.srcAccessMask = VK_ACCESS_MEMORY_WRITE_BIT;
 	barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
 	barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
 	barrier.newLayout = VK_IMAGE_LAYOUT_GENERAL;
-	vkCmdPipelineBarrier(commandBuffer.buffer,
+	vkCmdPipelineBarrier(_commandBuffer,
 		VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
 		0,
 		0, nullptr,
@@ -241,7 +246,9 @@ int Smoothie::DefaultTexture2D::create()
 		1, &barrier);
 
 
-	endSingleTimeCommands(commandBuffer);
+	_gpuWorkData.end();
+	_gpuWorkData.submit();
+	_gpuWorkData.destroy();
 
 	return 0;
 }

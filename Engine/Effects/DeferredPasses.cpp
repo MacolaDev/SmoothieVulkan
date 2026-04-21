@@ -1,8 +1,8 @@
 #include "DeferredPasses.h"
 #include "Core/SmoothieCore.h"
 #include "Core/DeviceDependency.h"
-#include "Effects/DeferredPipeline.h"
-#include "Core/Image.h"
+#include "Effects/Deferred_Pipeline.h"
+#include <iostream>
 
 int Smoothie::DeferredRendering::Attachment_Color::create()
 {
@@ -418,7 +418,7 @@ void Smoothie::DeferredRendering::gBufferPass::bindPass(VkCommandBuffer commandB
 
 	beginInfo.renderArea.extent = { SmoothieCore::getScrWidth(), SmoothieCore::getScrHeight() };
 	beginInfo.renderArea.offset = { 0, 0 };
-	vkCmdBeginRenderPass(commandBuffer, &beginInfo, VK_SUBPASS_CONTENTS_INLINE);
+	vkCmdBeginRenderPass(commandBuffer, &beginInfo, VK_SUBPASS_CONTENTS_SECONDARY_COMMAND_BUFFERS);
 }
 
 void Smoothie::DeferredRendering::gBufferPass::unbindPass(VkCommandBuffer commandBuffer, unsigned int ImageIndex) const
@@ -578,7 +578,7 @@ void Smoothie::DeferredRendering::HDRPass::bindPass(VkCommandBuffer commandBuffe
 	beginInfo.pClearValues = clearValues;
 	beginInfo.renderArea.extent = { SmoothieCore::getScrWidth(), SmoothieCore::getScrHeight() };
 	beginInfo.renderArea.offset = { 0, 0 };
-	vkCmdBeginRenderPass(commandBuffer, &beginInfo, VK_SUBPASS_CONTENTS_INLINE);
+	vkCmdBeginRenderPass(commandBuffer, &beginInfo, VK_SUBPASS_CONTENTS_SECONDARY_COMMAND_BUFFERS);
 }
 
 void Smoothie::DeferredRendering::HDRPass::unbindPass(VkCommandBuffer commandBuffer, unsigned int ImageIndex) const

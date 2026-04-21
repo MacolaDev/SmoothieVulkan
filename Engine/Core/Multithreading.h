@@ -1,33 +1,54 @@
 #pragma once
-#include <mutex>
-#include <queue>
+#include <vector>
 #include <vulkan/vulkan.h>
-#include <thread>
-#include <queue>
-#include <condition_variable>
 
-struct ThreadFrendlyCommandData
+namespace Smoothie
 {
-	VkCommandBuffer buffer = nullptr;
-	VkCommandPool pool = nullptr;
-};
+	struct QueuedSubmitInfo
+	{
+		VkFence fence = nullptr;
+		std::vector<VkSubmitInfo> submitInfos;
+		VkQueue queue = nullptr;
+	};
 
-void endSingleTimeCommands(ThreadFrendlyCommandData& commandBuffer);
-ThreadFrendlyCommandData beginSingleTimeCommands();
+	class ImmediateCommandBuffer
+	{
+	public:
+		enum class BufferState: int
+		{
+			Initial, Recording, Executable, Pending, Invalid
+		};
+
+		inline VkFence get_Fence() const {return m_Fence;}
+		inline VkCommandPool get_CommandPool() const {return m_CommandPool;}
+		inline VkCommandBuffer get_CommandBuffer() const {return m_CommandBuffer;}
+		inline BufferState get_BufferState() const {return m_BufferState;}
+
+		virtual int create();
+
+		//Begin command buffer recording.
+		virtual int begin();
+
+		//End command buffer recording.
+		virtual int end();
+
+		//Submits command buffer to the GPU imediatelly.
+		virtual void submit();
+
+		//Multithreaded submissions
+		virtual void submitAndWait();
+
+		virtual void destroy();
+
+		virtual ~ImmediateCommandBuffer() = default;
+
+	protected:
+		VkFence m_Fence = nullptr;
+		VkCommandPool m_CommandPool = nullptr;
+		VkCommandBuffer m_CommandBuffer = nullptr;
+		BufferState m_BufferState = BufferState::Invalid;
+	};
 
 
-class MultithreadSubmissions 
-{
-public:
 
-	static void addToGraphicsQueue(const VkSubmitInfo& submitInfo);
-	
-	static void submitGraphicsQueue();
-
-	static void getRenderingThreadID();
-
-private:
-	static std::queue<VkSubmitInfo> graphicsSubmitInfoQueue;
-	static std::thread::id renderingThreadID;
-	static std::condition_variable cv;
-};
+}

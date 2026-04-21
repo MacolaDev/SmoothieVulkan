@@ -2,7 +2,6 @@ cmake_minimum_required(VERSION 3.31.0)
 
 project(SmoothieEditor)
 
-
 file(GLOB ImGuiSources 
 "${CMAKE_SOURCE_DIR}/include/imgui/*.cpp" 
 "${CMAKE_SOURCE_DIR}/include/imgui/*.h"
@@ -14,7 +13,13 @@ file(GLOB ImGuiSources
 
 file(GLOB_RECURSE SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp" "${CMAKE_CURRENT_SOURCE_DIR}/*.h")
 
-add_executable(SmoothieEditor ${SOURCES} ${ImGuiSources} "${CMAKE_SOURCE_DIR}/Demo/Demo.cpp")
+add_executable(SmoothieEditor ${SOURCES} ${ImGuiSources} "${CMAKE_SOURCE_DIR}/Demo/Demo.cpp"
+        Tools/Tool_Camera.cpp
+        Tools/Tool_Camera.h
+        Tools/Tool_SceneGraph.cpp
+        Tools/Tool_SceneGraph.h)
+
+target_compile_definitions(SmoothieEditor PRIVATE SMOOTHIE_VULKAN_EDITOR)
 
 target_include_directories(SmoothieEditor PRIVATE ${CMAKE_SOURCE_DIR}/include/GLFW/include)
 target_include_directories(SmoothieEditor PRIVATE ${CMAKE_SOURCE_DIR}/Engine)

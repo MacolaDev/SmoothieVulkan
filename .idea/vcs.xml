@@ -2,13 +2,30 @@
 <project version="4">
   <component name="VcsDirectoryMappings">
     <mapping directory="" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/include/!glslang" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/include/!glslang/External/googletest" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/include/!glslang/External/spirv-tools" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/include/!glslang/External/spirv-tools/external/spirv-headers" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/include/VulkanMemoryAllocator" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/include/glfw" vcs="Git" />
-    <mapping directory="$PROJECT_DIR$/include/glslang" vcs="Git" />
-    <mapping directory="$PROJECT_DIR$/include/glslang/External/googletest" vcs="Git" />
-    <mapping directory="$PROJECT_DIR$/include/glslang/External/spirv-tools" vcs="Git" />
-    <mapping directory="$PROJECT_DIR$/include/glslang/External/spirv-tools/external/spirv-headers" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/include/imgui" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/include/slang" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/include/slang/external/WindowsToolchain" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/include/slang/external/glm" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/include/slang/external/glslang" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/include/slang/external/imgui" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/include/slang/external/lua" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/include/slang/external/lz4" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/include/slang/external/metal-cpp" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/include/slang/external/miniz" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/include/slang/external/optix-dev" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/include/slang/external/slang-binaries" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/include/slang/external/slang-rhi" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/include/slang/external/spirv-headers" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/include/slang/external/spirv-tools" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/include/slang/external/tinyobjloader" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/include/slang/external/unordered_dense" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/include/slang/external/vulkan" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/include/stb" vcs="Git" />
   </component>
 </project>

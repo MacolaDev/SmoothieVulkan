@@ -9,7 +9,7 @@
 namespace Smoothie
 {
 
-	class CameraDescriptorBuffer : public BufferBase
+	class CameraDescriptorBuffer : public Buffer_Base
 	{
 
 	public:
@@ -18,7 +18,7 @@ namespace Smoothie
 		void destroy() override;
 	};
 
-	class CameraDescriptorSet : public DescriptorBase
+	class CameraDescriptorSet : public Descriptor_Base
 	{
 		void resize_callback() override;
 		CameraDescriptorBuffer buffer;
