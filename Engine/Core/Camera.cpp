@@ -1,60 +1,50 @@
 #include "Camera.h"
-#include <math.h>
 
 using namespace Smoothie;
-using namespace SmoothieMath;
+
+namespace
+{
+    struct alignas(16) CameraUniformData
+    {
+        glm::mat4 projectionMatrix;
+        glm::mat4 invProjectionMatrix;
+        glm::mat4 cameraMatrix;
+        glm::vec3 cameraPos;
+        glm::mat4 projectionViewMatrix;
+        glm::mat4 invProjectionViewMatrix;
+    };
+}
 
 void Camera::updateCameraMatrices()
 {
-	projectionMatrix.perspectiveProjection(fovy, aspec, zNear, zFar);
-	invProjectionMatrix = inverse(projectionMatrix);
-	cameraMatrix.lookAtMatrix(cameraPos, cameraPos + cameraFront, cameraUp);
-	projectionViewMatrix = projectionMatrix * cameraMatrix;
-	invProjectionViewMatrix = inverse(projectionViewMatrix);
+    m_ProjectionMatrix = glm::perspective(m_Fov, m_AspecRatio, m_zNear, m_zFar);
+	m_InvProjectionMatrix = glm::inverse(m_ProjectionMatrix);
+
+    m_CameraMatrix = glm::lookAt(m_CameraPosition, m_CameraPosition + m_CameraFront, m_CameraUp);
+
+	m_ProjectionViewMatrix = m_ProjectionMatrix * m_CameraMatrix;
+	m_InvProjectionViewMatrix = glm::inverse(m_ProjectionViewMatrix);
 }
 
-CameraUniformBufferData Smoothie::Camera::getCameraBufferData() const
+void Camera::getBufferData(std::vector<char> &dataVec) const
 {
-	CameraUniformBufferData data;
-	data.projectionMatrix = projectionMatrix;
-	data.cameraMatrix = cameraMatrix;
-	data.cameraPos = cameraPos;
-	data.projectionViewMatrix = projectionViewMatrix;
-	data.invProjectionViewMatrix = invProjectionViewMatrix;
-	return data;
+    auto _data = CameraUniformData();
+    _data.projectionMatrix = m_ProjectionMatrix;
+    _data.invProjectionMatrix = m_InvProjectionMatrix;
+    _data.cameraMatrix = m_CameraMatrix;
+    _data.cameraPos = m_CameraPosition;
+    _data.projectionViewMatrix = m_ProjectionViewMatrix;
+    _data.invProjectionViewMatrix = m_InvProjectionViewMatrix;
+
+    if (dataVec.size() != sizeof(_data))
+    {
+        dataVec.resize(sizeof(_data), 0);
+    }
+    std::memcpy(&dataVec[0], &_data, sizeof(_data));
 }
 
-Camera::Camera(const Vector3& cameraPos, const Vector3& cameraFront, const Vector3& cameraUp, float fovy, float aspec, float zNear, float zFar)
+VkDeviceSize Camera::getBufferSize() const
 {
-	this->cameraPos = cameraPos;
-	this->cameraFront = cameraFront;
-	this->cameraUp = cameraUp;
-
-	this->zFar = zFar;
-	this->zNear = zNear;
-
-	this->fovy = fovy;
-	this->aspec = aspec;
-	
-	cameraMatrix.lookAtMatrix(cameraPos, cameraPos + cameraFront, cameraUp);
-	projectionMatrix.perspectiveProjection(fovy, aspec, zNear, zFar);
-	projectionViewMatrix = projectionMatrix * cameraMatrix;
-	invProjectionMatrix = inverse(projectionMatrix);
-	invProjectionViewMatrix = inverse(projectionViewMatrix);
+    return sizeof(CameraUniformData);
 }
 
-static inline Vector3 computeWorldSpacePosition(const SmoothieMath::Matrix4x4& invProjectionViewMatrix, const Vector3& NDC) 
-{
-	const Vector4 result = invProjectionViewMatrix * Vector4(NDC.x, NDC.y, NDC.z, 1.0f);
-	return { 
-		result.x / result.w, 
-		result.y / result.w, 
-		result.z / result.w};
-}
-
-static inline Vector3 getNormalFromTriangle(const Vector3& v0, const Vector3& v1, const Vector3& v2)
-{
-	const auto a = v1 - v0;
-	const auto b = v2 - v0;
-	return cross(a, b);
-}

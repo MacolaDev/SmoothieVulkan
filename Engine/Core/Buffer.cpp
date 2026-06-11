@@ -1,10 +1,6 @@
 #include "Buffer.h"
-#include <vector>
-#include <memory>
-#include <cstring>
 #include "Core/SmoothieCore.h"
 #include "Core/Multithreading.h"
-#include <iostream>
 
 int Smoothie::DefaultBuffer::create()
 {
@@ -18,7 +14,7 @@ int Smoothie::DefaultBuffer::create()
 	__allocation_BufferInfo.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT;
 
 
-	if (vmaCreateBuffer(SmoothieCore::getVulkanMemoryAllocator(), &__BufferInfo, &__allocation_BufferInfo, &buffer, &bufferAllocation, nullptr) != VK_SUCCESS)
+	if (vmaCreateBuffer(SmoothieCore::getVulkanMemoryAllocator(), &__BufferInfo, &__allocation_BufferInfo, &m_Buffer, &m_BufferAllocation, nullptr) != VK_SUCCESS)
 	{
 		std::cout << "Failed to create uniform buffer!" << std::endl;
 		return 1;
@@ -31,20 +27,16 @@ int Smoothie::DefaultBuffer::create()
 		return 1;
 	}
 	_commandBuffer.begin();
-	vkCmdFillBuffer(_commandBuffer.get_CommandBuffer(), buffer, 0, VK_WHOLE_SIZE, 0);
+	vkCmdFillBuffer(_commandBuffer.get_CommandBuffer(), m_Buffer, 0, VK_WHOLE_SIZE, 0);
 	_commandBuffer.end();
-	_commandBuffer.submit();
+	_commandBuffer.submitAndWait();
 	_commandBuffer.destroy();
 
 	return 0;
 }
 
-void Smoothie::DefaultBuffer::resize_callback()
-{
-}
-
 void Smoothie::DefaultBuffer::destroy()
 {
-	vmaDestroyBuffer(SmoothieCore::getVulkanMemoryAllocator(), buffer, bufferAllocation);
-	buffer = nullptr, bufferAllocation = nullptr;
+	vmaDestroyBuffer(SmoothieCore::getVulkanMemoryAllocator(), m_Buffer, m_BufferAllocation);
+	m_Buffer = nullptr, m_BufferAllocation = nullptr;
 }

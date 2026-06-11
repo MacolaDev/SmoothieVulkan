@@ -1,5 +1,5 @@
 #pragma once
-#include <vulkan/vulkan.h>
+#include "Common.h"
 namespace Smoothie
 {
 	//Base class for all screen space effects

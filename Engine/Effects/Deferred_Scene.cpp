@@ -108,7 +108,7 @@ void Smoothie::DeferredRendering::Deferred_Scene::load_model(const Element &_mod
 
 
 
-    DeferredRendering::Standard_Model _model;
+    DeferredRendering::Model_Standard _model;
     for (const auto &_child : _modelRootElement.children)
     {
         //Get shader/pipeline
@@ -139,8 +139,8 @@ void Smoothie::DeferredRendering::Deferred_Scene::load_model(const Element &_mod
 
     _model.add_model_matrix(_modelMatrix);
     //_model.setModelFile(_model_element.getChild("file").textContent);
-    if (_model.create() != 0)
-    {
-        std::cout << "Failed to create model " << _model.getModelFile() << std::endl;
-    }
+    // if (_model.create() != 0)
+    // {
+    //     std::cout << "Failed to create model " << _model.getModelFile() << std::endl;
+    // }
 }

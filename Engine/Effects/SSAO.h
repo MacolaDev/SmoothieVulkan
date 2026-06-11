@@ -1,7 +1,5 @@
 #pragma once
-#include <vulkan/vulkan.h>
-#include <vector>
-#include "vk_mem_alloc.h"
+#include <Core/Common.h>
 
 #include "Math/SmoothieMath.h"
 #include "Core/Effect.h"

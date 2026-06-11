@@ -5,6 +5,8 @@
 
 #include "Editor_Core.h"
 
+#include "Core/Camera.h"
+
 namespace Smoothie
 {
 	//Base class for managing drawing actions to create a single frame
@@ -20,6 +22,8 @@ namespace Smoothie
 		virtual int resize_callback() = 0;
 		
 		virtual void destroy() = 0;
+
+	    virtual void update_camera(const Camera& camera) {};
 
 #ifdef SMOOTHIE_VULKAN_EDITOR
 		inline void	set_editor_core(std::shared_ptr<Smoothie::Editor_Core> editor_core) { m_editor_core = editor_core; }

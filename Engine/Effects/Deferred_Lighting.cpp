@@ -1,116 +1,11 @@
 #include "Deferred_Lighting.h"
 #include "Core/SmoothieCore.h"
 #include <array>
-#include "Core/Pipeline.h"
 #include "Core/Multithreading.h"
 #include <cmath>
 #include <iostream>
 
-int Smoothie::DeferredRendering::Lighting_RenderPass::create()
-{
-	VkAttachmentDescription _attachmentDescription{};
-	_attachmentDescription.format = VK_FORMAT_R16G16B16A16_SFLOAT;
-	_attachmentDescription.samples = VK_SAMPLE_COUNT_1_BIT;
-	_attachmentDescription.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-	_attachmentDescription.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-	_attachmentDescription.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-	_attachmentDescription.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-	_attachmentDescription.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-	_attachmentDescription.finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
-	VkAttachmentReference colorAttachmentRef{};
-	colorAttachmentRef.attachment = 0;
-	colorAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-	VkSubpassDescription subpass = {};
-	subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
-	subpass.colorAttachmentCount = 1;
-	subpass.pColorAttachments = &colorAttachmentRef;
-	VkAttachmentDescription attachments[1] =
-	{
-		_attachmentDescription
-	};
-
-	VkRenderPassCreateInfo renderPassInfo = {};
-	renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-	renderPassInfo.attachmentCount = 1;
-	renderPassInfo.pAttachments = attachments;
-	renderPassInfo.subpassCount = 1;
-	renderPassInfo.pSubpasses = &subpass;
-	if (vkCreateRenderPass(SmoothieCore::getDevice(), &renderPassInfo, nullptr, &render_pass) != VK_SUCCESS)
-	{
-		std::cout << "Failed to create render pass!" << std::endl;
-		return 1;
-	}
-
-	VkFramebufferCreateInfo createInfo{};
-	createInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-	createInfo.renderPass = render_pass;
-	createInfo.attachmentCount = 1;
-	VkImageView _target_imgview = target.getImageView();
-	createInfo.pAttachments = &_target_imgview;
-	createInfo.width = SmoothieCore::getScrWidth();
-	createInfo.height = SmoothieCore::getScrHeight();
-	createInfo.layers = 1;
-	if (vkCreateFramebuffer(SmoothieCore::getDevice(), &createInfo, nullptr, &framebuffer) != VK_SUCCESS)
-	{
-		std::cout << "Failed to create framebuffer" << std::endl;
-		return 1;
-	}
-    return 0;
-}
-
-int Smoothie::DeferredRendering::Lighting_RenderPass::resize_callback()
-{
-	vkDestroyFramebuffer(SmoothieCore::getDevice(), framebuffer, nullptr);
-	framebuffer = nullptr;
-	VkFramebufferCreateInfo createInfo{};
-	createInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-	createInfo.renderPass = render_pass;
-	createInfo.attachmentCount = 1;
-	VkImageView _target_imgview = target.getImageView();
-	createInfo.pAttachments = &_target_imgview;
-	createInfo.width = SmoothieCore::getScrWidth();
-	createInfo.height = SmoothieCore::getScrHeight();
-	createInfo.layers = 1;
-	if (vkCreateFramebuffer(SmoothieCore::getDevice(), &createInfo, nullptr, &framebuffer) != VK_SUCCESS)
-	{
-		std::cout << "Failed to create framebuffer" << std::endl;
-		return 1;
-	}
-
-	return 0;
-}
-
-void Smoothie::DeferredRendering::Lighting_RenderPass::destroy()
-{
-	vkDestroyFramebuffer(SmoothieCore::getDevice(), framebuffer, nullptr);
-	framebuffer = nullptr;
-
-	vkDestroyRenderPass(SmoothieCore::getDevice(), render_pass, nullptr);
-	render_pass = nullptr;
-}
-
-void Smoothie::DeferredRendering::Lighting_RenderPass::bindPass(VkCommandBuffer commandBuffer, unsigned int FrameID) const
-{
-	VkRenderPassBeginInfo beginInfo{};
-	beginInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-	beginInfo.framebuffer = framebuffer;
-	beginInfo.renderPass = render_pass;
-	VkClearValue clearColor{};
-	clearColor.color = { 0.0f, 0.0f, 0.0f, 1.0f };
-	static VkClearValue clearValues[] = { clearColor };
-	beginInfo.clearValueCount = 1;
-	beginInfo.pClearValues = clearValues;
-	beginInfo.renderArea.extent.height = SmoothieCore::getScrHeight();
-	beginInfo.renderArea.extent.width = SmoothieCore::getScrWidth();
-	beginInfo.renderArea.offset = { 0, 0 };
-	vkCmdBeginRenderPass(commandBuffer, &beginInfo, VK_SUBPASS_CONTENTS_INLINE);
-}
-
-void Smoothie::DeferredRendering::Lighting_RenderPass::unbindPass(VkCommandBuffer commandBuffer, unsigned int FrameID) const
-{
-	vkCmdEndRenderPass(commandBuffer);
-}
 
 int Smoothie::DeferredRendering::Global_Illumination::create()
 {
@@ -128,7 +23,7 @@ int Smoothie::DeferredRendering::Global_Illumination::create()
 
 	const VkDescriptorSetLayout descriptorSets[] =
 	{
-		SmoothieCore::getCameraDescriptorSetLayout(0),
+		//SmoothieCore::getCameraDescriptorSetLayout(0),
 		DrawClassSetLayout,
 		gBufferImagesDescriptorSetLayout,
 		BRDF_DescriptorSetLayout,
@@ -163,8 +58,8 @@ int Smoothie::DeferredRendering::Global_Illumination::create()
 	pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
 	pipelineInfo.stageCount = 2;
 	pipelineInfo.pStages = stages;
-	Smoothie::DefaultPipelineState __state;
-	__state.populate_pipeline(pipelineInfo);
+	// Smoothie::DefaultPipelineState __state;
+	// __state.populate_pipeline(pipelineInfo);
 	pipelineInfo.pDepthStencilState;
 	pipelineInfo.renderPass = renderPass;
 	pipelineInfo.layout = pipelineLayout;
@@ -191,7 +86,7 @@ void Smoothie::DeferredRendering::Global_Illumination::draw(VkCommandBuffer comm
 
 	const VkDescriptorSet _descriptors[5] =
 	{
-		SmoothieCore::getCameraDescriptorSet(),
+		//SmoothieCore::getCameraDescriptorSet(),
 		drawClassSet,
 		gBufferImagesDescriptorSet,
 		BRDF_DescriptorSet,
@@ -335,8 +230,8 @@ int Smoothie::DeferredRendering::BRDF::create()
 	const VkPipelineShaderStageCreateInfo stages[] = { vertexShaderPipelineCreateInfo, fragmentShaderPipelineCreateInfo };
 	pipelineInfo.stageCount = 2;
 	pipelineInfo.pStages = stages;
-	DefaultPipelineState _pipe;
-	_pipe.populate_pipeline(pipelineInfo);
+	// DefaultPipelineState _pipe;
+	// _pipe.populate_pipeline(pipelineInfo);
 	const VkDynamicState dynamicStates[2] = { VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR };
 	pipelineInfo.layout = pipelineLayout;
 	pipelineInfo.renderPass = renderPass;
@@ -385,7 +280,7 @@ int Smoothie::DeferredRendering::BRDF::create()
 	vkCmdDraw(_commandBuffer, 6, 1, 0, 0);
 	vkCmdEndRenderPass(_commandBuffer);
 	_immediateCommandBuffer.end();
-	_immediateCommandBuffer.submit();
+	_immediateCommandBuffer.submitAndWait();
 	_immediateCommandBuffer.destroy();
 
 
@@ -477,6 +372,7 @@ int Smoothie::DeferredRendering::IndirectLightingMaps::create()
 		return 1;
 	}
 
+
 	//**************************************** Irradiance image ****************************************//
 	VkImageCreateInfo _IrrMapCreateInfo{};
 	_IrrMapCreateInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
@@ -546,7 +442,7 @@ int Smoothie::DeferredRendering::IndirectLightingMaps::create()
 	vkCmdPipelineBarrier(_commandBuffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, nullptr, 0, nullptr, 1, &barrier);
 	
 	_immediateCommandBuffer.end();
-	_immediateCommandBuffer.submit();
+	_immediateCommandBuffer.submitAndWait();
 
 	//**************************************** Prefilter image ****************************************//
 	VkImageCreateInfo _PrefImageCreateImage{};
@@ -608,7 +504,7 @@ int Smoothie::DeferredRendering::IndirectLightingMaps::create()
 	vkCmdPipelineBarrier(_commandBuffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, 1, &barrier);
 
 	_immediateCommandBuffer.end();
-	_immediateCommandBuffer.submit();
+	_immediateCommandBuffer.submitAndWait();
 	_immediateCommandBuffer.destroy();
 
 	//**************************************** Descriptors ****************************************//
@@ -825,8 +721,8 @@ int Smoothie::DeferredRendering::IndirectLightingMaps::create_maps_from_skybox_c
 	VkPipelineShaderStageCreateInfo stages[] = { vertexShaderPipelineCreateInfo, fragmentShaderPipelineCreateInfo };
 	_IrrMapPipelineCreateInfo.stageCount = 2;
 	_IrrMapPipelineCreateInfo.pStages = stages;
-	Smoothie::DefaultPipelineState __default_state;
-	__default_state.populate_pipeline(_IrrMapPipelineCreateInfo);
+	// Smoothie::DefaultPipelineState __default_state;
+	// __default_state.populate_pipeline(_IrrMapPipelineCreateInfo);
 	_IrrMapPipelineCreateInfo.layout = pipelineLayout;
 	_IrrMapPipelineCreateInfo.renderPass = renderPass;
 	_IrrMapPipelineCreateInfo.subpass = 0;
@@ -949,7 +845,7 @@ int Smoothie::DeferredRendering::IndirectLightingMaps::create_maps_from_skybox_c
 	__ToShaderReadOnlyBarrier.subresourceRange.layerCount = 6;
 	vkCmdPipelineBarrier(_commandBuffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, nullptr, 0, nullptr, 1, &__ToShaderReadOnlyBarrier);
 	_immediateCommandBuffer.end();
-	_immediateCommandBuffer.submit();
+	_immediateCommandBuffer.submitAndWait();
 
 	//clean resources that are no longer needed
 	vkDestroyPipeline(SmoothieCore::getDevice(), pipeline, nullptr), pipeline = nullptr;
@@ -1118,7 +1014,7 @@ int Smoothie::DeferredRendering::IndirectLightingMaps::create_maps_from_skybox_c
 	__ToShaderReadOnlyBarrier.subresourceRange.levelCount = 5;
 	vkCmdPipelineBarrier(_commandBuffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, nullptr, 0, nullptr, 1, &__ToShaderReadOnlyBarrier);
 	_immediateCommandBuffer.end();
-	_immediateCommandBuffer.submit();
+	_immediateCommandBuffer.submitAndWait();
 	_immediateCommandBuffer.destroy();
 
 

@@ -4,9 +4,7 @@
 #include <random>
 
 #include "Core/SmoothieCore.h"
-#include "Core/RenderPass.h"
 #include "Core/Shader.h"
-#include "Core/CameraDescriptor.h"
 #include "Effects/Deferred_Core.h"
 
 using namespace SmoothieMath;

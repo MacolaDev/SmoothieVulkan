@@ -1,71 +1,88 @@
 #include "../Smoothie.slang"
 
-static const float3 aPos[36] = 
+struct Sky
 {
-    float3(-1.0f, -1.0f, -1.0f), // bottom-left
-    float3(1.0f, 1.0f, -1.0f),   // top-right
-    float3(1.0f, -1.0f, -1.0f),  // bottom-right
-    float3(1.0f, 1.0f, -1.0f),   // top-right
-    float3(-1.0f, -1.0f, -1.0f), // bottom-left
-    float3(-1.0f, 1.0f, -1.0f),  // top-left
-    // front face
-    float3(-1.0f, -1.0f, 1.0f), // bottom-left
-    float3(1.0f, -1.0f, 1.0f),  // bottom-right
-    float3(1.0f, 1.0f, 1.0f),   // top-right
-    float3(1.0f, 1.0f, 1.0f),   // top-right
-    float3(-1.0f, 1.0f, 1.0f),  // top-left
-    float3(-1.0f, -1.0f, 1.0f), // bottom-left
-    // left face
-    float3(-1.0f, 1.0f, 1.0f),   // top-right
-    float3(-1.0f, 1.0f, -1.0f),  // top-left
-    float3(-1.0f, -1.0f, -1.0f), // bottom-left
-    float3(-1.0f, -1.0f, -1.0f), // bottom-left
-    float3(-1.0f, -1.0f, 1.0f),  // bottom-right
-    float3(-1.0f, 1.0f, 1.0f),   // top-right
-    // right face
-    float3(1.0f, 1.0f, 1.0f),   // top-left
-    float3(1.0f, -1.0f, -1.0f), // bottom-right
-    float3(1.0f, 1.0f, -1.0f),  // top-right
-    float3(1.0f, -1.0f, -1.0f), // bottom-right
-    float3(1.0f, 1.0f, 1.0f),   // top-left
-    float3(1.0f, -1.0f, 1.0f),  // bottom-left
-    // bottom face
-    float3(-1.0f, -1.0f, -1.0f), // top-right
-    float3(1.0f, -1.0f, -1.0f),  // top-left
-    float3(1.0f, -1.0f, 1.0f),   // bottom-left
-    float3(1.0f, -1.0f, 1.0f),   // bottom-left
-    float3(-1.0f, -1.0f, 1.0f),  // bottom-right
-    float3(-1.0f, -1.0f, -1.0f), // top-right
-    // top face
-    float3(-1.0f, 1.0f, -1.0f), // top-left
-    float3(1.0f, 1.0f, 1.0f),   // bottom-right
-    float3(1.0f, 1.0f, -1.0f),  // top-right
-    float3(1.0f, 1.0f, 1.0f),   // bottom-right
-    float3(-1.0f, 1.0f, -1.0f), // top-left
-    float3(-1.0f, 1.0f, 1.0f)   // bottom-left
-};
+    TextureCube environmentMap;
+}
 
-[vk_binding(0, 2)]
-SamplerCube environmentMap;
+ParameterBlock<Smoothie_Globals> g_GlobalData;
+ParameterBlock<Sky> g_Sky;
+
 
 [shader("vertex")]
 float3 vertex_skybox(uint vertexId: SV_VulkanVertexID, out float4 position: SV_Position)
 {
-    float4x4 rotView = float4x4(
-        float4(Camera.viewMatrix[0].xyz, 0.0f),
-        float4(Camera.viewMatrix[1].xyz, 0.0f),
-        float4(Camera.viewMatrix[2].xyz, 0.0f),
-        float4(Camera.viewMatrix[3].xyz, 1.0f)
+    var _camera = g_GlobalData.camera;
+    var viewMatrix = g_GlobalData.camera.viewMatrix;
+
+    float4x4 rotView = float4x4
+    (
+        float4(viewMatrix[0].xyz, 0.0f),
+        float4(viewMatrix[1].xyz, 0.0f),
+        float4(viewMatrix[2].xyz, 0.0f),
+        float4(viewMatrix[3].xyz, 1.0f)
     );
-    position = mul(mul(Camera.projectionMatrix, rotView), float4(aPos[vertexId], 1.0)).xyww;
+    
+    position = mul(mul(_camera.projectionMatrix, rotView), float4(aPos[vertexId], 1.0)).xyww;
     return aPos[vertexId];
 }
+
 
 [shader("fragment")]
 float4 fragment_skybox(float3 TexCoords)
 {
-    return float4(environmentMap.Sample(TexCoords).xyz, 1.0f);
+    // return float4(g_Atmosphere.environmentMap.Sample(g_GlobalData.samplers.Texture2DSampler, TexCoords).xyz, 1.0f);
+    return float4(0.5 * normalize(TexCoords) + 0.5, 1.0f);
 }
+
+static const float3 aPos[36] =
+    {
+        float3(-1.0f, -1.0f, -1.0f), // bottom-left
+        float3(1.0f, 1.0f, -1.0f),   // top-right
+        float3(1.0f, -1.0f, -1.0f),  // bottom-right
+        float3(1.0f, 1.0f, -1.0f),   // top-right
+        float3(-1.0f, -1.0f, -1.0f), // bottom-left
+        float3(-1.0f, 1.0f, -1.0f),  // top-left
+        // front face
+        float3(-1.0f, -1.0f, 1.0f), // bottom-left
+        float3(1.0f, -1.0f, 1.0f),  // bottom-right
+        float3(1.0f, 1.0f, 1.0f),   // top-right
+        float3(1.0f, 1.0f, 1.0f),   // top-right
+        float3(-1.0f, 1.0f, 1.0f),  // top-left
+        float3(-1.0f, -1.0f, 1.0f), // bottom-left
+        // left face
+        float3(-1.0f, 1.0f, 1.0f),   // top-right
+        float3(-1.0f, 1.0f, -1.0f),  // top-left
+        float3(-1.0f, -1.0f, -1.0f), // bottom-left
+        float3(-1.0f, -1.0f, -1.0f), // bottom-left
+        float3(-1.0f, -1.0f, 1.0f),  // bottom-right
+        float3(-1.0f, 1.0f, 1.0f),   // top-right
+        // right face
+        float3(1.0f, 1.0f, 1.0f),   // top-left
+        float3(1.0f, -1.0f, -1.0f), // bottom-right
+        float3(1.0f, 1.0f, -1.0f),  // top-right
+        float3(1.0f, -1.0f, -1.0f), // bottom-right
+        float3(1.0f, 1.0f, 1.0f),   // top-left
+        float3(1.0f, -1.0f, 1.0f),  // bottom-left
+        // bottom face
+        float3(-1.0f, -1.0f, -1.0f), // top-right
+        float3(1.0f, -1.0f, -1.0f),  // top-left
+        float3(1.0f, -1.0f, 1.0f),   // bottom-left
+        float3(1.0f, -1.0f, 1.0f),   // bottom-left
+        float3(-1.0f, -1.0f, 1.0f),  // bottom-right
+        float3(-1.0f, -1.0f, -1.0f), // top-right
+        // top face
+        float3(-1.0f, 1.0f, -1.0f), // top-left
+        float3(1.0f, 1.0f, 1.0f),   // bottom-right
+        float3(1.0f, 1.0f, -1.0f),  // top-right
+        float3(1.0f, 1.0f, 1.0f),   // bottom-right
+        float3(-1.0f, 1.0f, -1.0f), // top-left
+        float3(-1.0f, 1.0f, 1.0f)   // bottom-left
+    };
+
+
+
+
 
 
 //layout (set = 0, binding = 0) uniform Standard

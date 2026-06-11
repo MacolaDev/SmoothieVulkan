@@ -73,7 +73,11 @@ int SmoothieCompiler::CompiledShader::get_data(slang::VariableLayoutReflection *
 	variable.flags = Shader_Variable_Flags::None;
 	variable.name = (layout->getName() == nullptr) ? std::string() : layout->getName();
 
-	auto* _type = layout->getTypeLayout()->getType();
+	auto* _type = layout->getTypeLayout()->getType()->getElementType();
+    if (_type == nullptr)
+    {
+        return 1;
+    }
 
 	Slang::ComPtr<IBlob> _name;
 	_type->getFullName(_name.writeRef());
@@ -152,7 +156,7 @@ int SmoothieCompiler::CompiledShader::get_data(slang::TypeLayoutReflection* layo
 			break;
 
 		default:
-			_scalar = Shader_Types_Scalar::None;
+			_scalar = Shader_Types_Scalar::Unknown;
 	}
 	newType->builtinType = _scalar;
 
@@ -175,6 +179,7 @@ int SmoothieCompiler::CompiledShader::get_data(slang::TypeLayoutReflection* layo
 
 
 	Shader_Type_UniformSubclass _subclass;
+    auto _kind = layout->getKind();
 	switch (layout->getKind())
 	{
 		case TypeReflection::Kind::Scalar:
@@ -194,10 +199,11 @@ int SmoothieCompiler::CompiledShader::get_data(slang::TypeLayoutReflection* layo
 			break;
 
 		default:
-			_subclass = Shader_Type_UniformSubclass::None;
+			_subclass = Shader_Type_UniformSubclass::Unknown;
 	}
+    
 	newType->subclass = _subclass;
-
+    newType->count = layout->getElementCount();
 	newType->sizeX = layout->getColumnCount();
 	newType->sizeY = layout->getRowCount();
 
@@ -248,6 +254,9 @@ int SmoothieCompiler::CompiledShader::get_data(slang::TypeLayoutReflection *layo
 		case SLANG_RESOURCE_ACCESS_READ_WRITE:
 			newType->access = Shader_Type_ResourceAccess::ReadWrite;
 			break;
+	    case SLANG_RESOURCE_ACCESS_APPEND:
+	        newType->access = Shader_Type_ResourceAccess::Append;
+	        break;
 
 		default:
 			newType->access = Shader_Type_ResourceAccess::Unknown;
@@ -256,7 +265,7 @@ int SmoothieCompiler::CompiledShader::get_data(slang::TypeLayoutReflection *layo
 
 
 	const auto _shape = layout->getResourceShape();
-	switch (_shape ^ SlangResourceShape::SLANG_TEXTURE_COMBINED_FLAG)
+	switch (_shape & SLANG_RESOURCE_BASE_SHAPE_MASK)
 	{
 		case SLANG_RESOURCE_NONE:
 			newType->shape = Shader_Type_Resource_Shape::None;
@@ -276,23 +285,47 @@ int SmoothieCompiler::CompiledShader::get_data(slang::TypeLayoutReflection *layo
 		case SLANG_STRUCTURED_BUFFER:
 			newType->shape = Shader_Type_Resource_Shape::StructuredBuffer;
 			break;
+	    case SLANG_TEXTURE_BUFFER:
+	        newType->shape = Shader_Type_Resource_Shape::TextureBuffer;
+	        break;
 		default:
 			newType->shape = Shader_Type_Resource_Shape::Unknown;
 			break;
 	}
 
+    if (newType->shape == Shader_Type_Resource_Shape::None)
+    {
+        switch (layout->getKind())
+        {
+            case TypeReflection::Kind::SamplerState:
+                newType->shape = Shader_Type_Resource_Shape::SamplerState;
+                break;
 
-	if (SLANG_TEXTURE_ARRAY_FLAG & _shape)
-	{
-		newType->shape_flags = Shader_Type_Resource_ShapeFlags::Array;
-	}else if (SLANG_TEXTURE_MULTISAMPLE_FLAG & _shape)
-	{
-		newType->shape_flags = Shader_Type_Resource_ShapeFlags::Multisample;
-	}else
-	{
-		newType->shape_flags = Shader_Type_Resource_ShapeFlags::None;
-	}
+            case TypeReflection::Kind::ConstantBuffer:
+                newType->shape = Shader_Type_Resource_Shape::ConstantBuffer;
+                break;
 
+            default:
+                newType->shape = Shader_Type_Resource_Shape::Unknown;
+                break;
+        }
+    }
+
+    switch (_shape & SLANG_RESOURCE_EXT_SHAPE_MASK)
+    {
+	    case SLANG_TEXTURE_ARRAY_FLAG:
+            newType->shape_flags = Shader_Type_Resource_ShapeFlags::Array;
+            break;
+	    case SLANG_TEXTURE_MULTISAMPLE_FLAG:
+            newType->shape_flags = Shader_Type_Resource_ShapeFlags::Multisample;
+            break;
+	    case SLANG_TEXTURE_COMBINED_FLAG:
+            newType->shape_flags = Shader_Type_Resource_ShapeFlags::Combined;
+            break;
+        default:
+            newType->shape_flags = Shader_Type_Resource_ShapeFlags::None;
+            break;
+    }
 
 	auto* _result_type = layout->getResourceResultType();
 	if (_result_type == nullptr)
@@ -347,12 +380,14 @@ int SmoothieCompiler::CompiledShader::get_data(slang::TypeLayoutReflection *layo
 			m_Types[_full_name] = _new_type;
 		}break;
 
+	    case TypeReflection::Kind::SamplerState:
+	    case TypeReflection::Kind::ConstantBuffer:
 		case TypeReflection::Kind::Resource:
 		{
 			auto _new_type = std::make_shared<Shader_Type_Resource>();
 			get_data(layout, _new_type);
 			m_Types[_full_name] = _new_type;
-		} break;;
+		} break;
 		default:
 		{
 			m_Types[_full_name] = std::make_shared<Shader_Type_Base>(Shader_Type_Kind::Unknown);
@@ -451,6 +486,7 @@ int SmoothieCompiler::CompiledShader::serialize(std::ofstream &data)
 				data.write(reinterpret_cast<const std::ostream::char_type *>(&_casted_type->subclass), sizeof(_casted_type->subclass));
 				data.write(reinterpret_cast<const std::ostream::char_type *>(&_casted_type->sizeX), sizeof(_casted_type->sizeX));
 				data.write(reinterpret_cast<const std::ostream::char_type *>(&_casted_type->sizeY), sizeof(_casted_type->sizeY));
+			    data.write(reinterpret_cast<const std::ostream::char_type *>(&_casted_type->count), sizeof(_casted_type->count));
 			}break;
 
 			case Shader_Type_Kind::Resource:

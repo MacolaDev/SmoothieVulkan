@@ -1,12 +1,6 @@
 #include "Bloom.h"
-#include "Core/RenderPass.h"
 #include "Core/SmoothieCore.h"
-#include "Core/Pipeline.h"
-#include <iostream>
-
 #include "Effects/Deferred_Core.h"
-
-#include <cmath>
 
 struct dwPushContant
 {
@@ -238,8 +232,8 @@ int Smoothie::DeferredRendering::Bloom::create()
 	VkPipelineShaderStageCreateInfo stages[] = { vertexShaderPipelineCreateInfo, fragmentShaderPipelineCreateInfo };
 	_HiglightsPipelineInfo.stageCount = 2;
 	_HiglightsPipelineInfo.pStages = stages;
-	Smoothie::DefaultPipelineState __state;
-	__state.populate_pipeline(_HiglightsPipelineInfo);
+	// Smoothie::DefaultPipelineState __state;
+	// __state.populate_pipeline(_HiglightsPipelineInfo);
 	_HiglightsPipelineInfo.renderPass = renderPass;
 	_HiglightsPipelineInfo.subpass = 0;
 	_HiglightsPipelineInfo.basePipelineHandle = nullptr;
@@ -320,14 +314,14 @@ int Smoothie::DeferredRendering::Bloom::create()
 	ColorBlendAttachmentState.dstColorBlendFactor = VK_BLEND_FACTOR_ONE;
 	ColorBlendAttachmentState.srcColorBlendFactor = VK_BLEND_FACTOR_ONE;
 	ColorBlendAttachmentState.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT;
-	VkPipelineColorBlendStateCreateInfo blending = __state.getColorBlendStateCreateInfo();
-	blending.attachmentCount = 1;
-	blending.pAttachments = &ColorBlendAttachmentState;
-	blending.blendConstants[0] = 0.0f;
-	blending.blendConstants[1] = 0.0f;
-	blending.blendConstants[2] = 0.0f;
-	blending.blendConstants[3] = 0.0f;
-	_upsamplingPipelineInfo.pColorBlendState = &blending;
+	// VkPipelineColorBlendStateCreateInfo blending = __state.getColorBlendStateCreateInfo();
+	// blending.attachmentCount = 1;
+	// blending.pAttachments = &ColorBlendAttachmentState;
+	// blending.blendConstants[0] = 0.0f;
+	// blending.blendConstants[1] = 0.0f;
+	// blending.blendConstants[2] = 0.0f;
+	// blending.blendConstants[3] = 0.0f;
+	// _upsamplingPipelineInfo.pColorBlendState = &blending;
 	if (vkCreateGraphicsPipelines(SmoothieCore::getDevice(), VK_NULL_HANDLE, 1, &_upsamplingPipelineInfo, nullptr, &upsamplingPipeline) != VK_SUCCESS)
 	{
 		std::cout << "Failed to create downsampling pipeline!" << std::endl;

@@ -1,27 +1,28 @@
 #pragma once
+#include "Attributes.slang"
 
-// Disables reflecting a struct or a parameter.
-[__AttributeUsage(_AttributeTargets.Struct)]
-struct NoReflectionAttribute{}
-
-//Mandatory for all shaders to be set.
-//With this we identify shader inside a file.
-[__AttributeUsage(_AttributeTargets.Function)]
-struct TargetPipelineAttribute
+struct Attachments
 {
-    string pipeline;
-};
+    Texture2D gPosition;
+    Texture2D gNormal;
+    Texture2D gAlbedo;
+    Texture2D gMRAO;
 
-[__AttributeUsage(_AttributeTargets.Var)]
-struct VkSetAttribute
-{
-    int set;   
+    Texture2D HDR;
+
+    Texture2D depth;
 }
 
-#define VK_SET(n) [vk_binding(0,n)] [VkSet(n)]
 
-[NoReflection]
-struct CameraData
+struct Samplers
+{
+    SamplerState Texture2DSampler;
+    SamplerState ClampToEdgeLINEAR;
+    SamplerState ClampToEdgeNEAREST;
+    SamplerState RepeatNEAREST;
+}
+
+struct Camera
 {
     float4x4 projectionMatrix;
     float4x4 invProjectionMatrix;
@@ -29,47 +30,31 @@ struct CameraData
     float3 viewPos;
     float4x4 projectionViewMatrix;
     float4x4 invProjectionViewMatrix;
-    uint SCR_WIDTH;
-    uint SCR_HEIGHT;
-};
-
-[VkSet(0)]
-ConstantBuffer<CameraData> Camera;
-
-[NoReflection]
-struct EngineParams
-{
 }
 
-[VkSet(1)]
-ConstantBuffer<EngineParams> g_EngineParams;
-
-
-struct gBufferPass
+struct ShadowCamera
 {
-    float4 gPosition;
-    float4 gNormal;
-    float4 gAlbedo;
-    float4 gMRAO;
+    float4x4 projectionViewMatrix;
 }
 
-struct HDRPass
+struct Smoothie_Globals
 {
-    float4 HDR; 
+    Attachments attachments;
+    Samplers samplers;
+    ConstantBuffer<Camera> camera;
+    ConstantBuffer<ShadowCamera> shadowCamera;
+}
+
+struct FS_Output_gBuffer
+{
+    float4 position;
+    float4 normal;
+    float4 albedo;
+    float4 mrao;
 }
 
 
-float4 unpackNormals(uint packedNormal)
+struct FS_Output_HDR
 {
-    float x = ((packedNormal >> 0) & 0xFF);
-    float y = ((packedNormal >> 8) & 0xFF);
-    float z = ((packedNormal >> 16) & 0xFF);
-    float w = ((packedNormal >> 24) & 0xFF);
-
-    float4 result = float4(x, y, z, w);
-
-    result /= float4(127);
-    result -= float4(1);
-
-    return result;
+    float4 hdr;
 }

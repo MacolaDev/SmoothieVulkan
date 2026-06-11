@@ -6,7 +6,6 @@
 #include "Core/Constants.h"
 #include "Core/SmoothieCore.h"
 #include "Core/Multithreading.h"
-#include <iostream>
 
 using namespace Smoothie;
 
@@ -125,13 +124,12 @@ static int loadImageSTB
 
 
 static std::mutex mutex;
-int Texture2D::create(const std::string& file)
+int Texture2D::create()
 {
-	filepath = file;
 	std::lock_guard<std::mutex> lock(mutex);
-	if (loadImageSTB(image, imageView, allocation, file) != 0)
+	if (loadImageSTB(m_Image, m_ImageView, m_Allocation, filepath) != 0)
 	{
-		std::cout << "Failed to load texture " << file << std::endl;
+		std::cout << "Failed to load texture " << filepath << std::endl;
 		return 1;
 	}
 	
@@ -140,12 +138,18 @@ int Texture2D::create(const std::string& file)
 
 void Texture2D::destroy()
 {
-	vmaDestroyImage(SmoothieCore::getVulkanMemoryAllocator(), image, allocation);
-	image = nullptr;
-	allocation = nullptr;
+    if (m_Image != nullptr)
+    {
+        vmaDestroyImage(SmoothieCore::getVulkanMemoryAllocator(), m_Image, m_Allocation);
+    }
+	m_Image = nullptr;
+	m_Allocation = nullptr;
 
-	vkDestroyImageView(SmoothieCore::getDevice(), imageView, nullptr);
-	imageView = nullptr;
+	if (m_ImageView != nullptr)
+	{
+	    vkDestroyImageView(SmoothieCore::getDevice(), m_ImageView, nullptr);
+	}
+	m_ImageView = nullptr;
 }
 
 int Smoothie::DefaultTexture2D::create()
@@ -247,7 +251,7 @@ int Smoothie::DefaultTexture2D::create()
 
 
 	_gpuWorkData.end();
-	_gpuWorkData.submit();
+	_gpuWorkData.submitAndWait();
 	_gpuWorkData.destroy();
 
 	return 0;

@@ -1,30 +1,48 @@
 #pragma once
-#include <vulkan/vulkan.h>
-#include <string>
-#include "vk_mem_alloc.h"
+#include "Core/Common.h"
 
 namespace Smoothie 
 {
-	class Texture2D
+
+    class Texture_Base
+    {
+    protected:
+        VkImage m_Image = nullptr;
+        VkImageView m_ImageView = nullptr;
+        VmaAllocation m_Allocation = nullptr;
+
+    public:
+        virtual int create() = 0;
+        virtual int recreate() {return 0;};
+        virtual void destroy() = 0;
+
+        inline VkImageView getImageView() const {return m_ImageView;}
+        inline VkImage getImage() const{return m_Image;}
+        inline VmaAllocation getAllocation() const {return m_Allocation;}
+
+        virtual ~Texture_Base() = default;
+    };
+
+
+
+	class Texture2D: public Texture_Base
 	{
+	    int create() override;
 	public:
 		
-		int create(const std::string& filepath);
-		void destroy();
+		inline int create(const std::string& filepath) {this->filepath = filepath; return create();};
+		void destroy() override;
 
 		Texture2D() = default;
 
-		inline VkImageView getImageView() const {return imageView;}
-		inline VkImage getImage() const{return image;}
-		inline VmaAllocation getAllocation() const {return allocation;}
 
 
 	private:
 		std::string filepath;
 
-		VkImage image = nullptr;
-		VkImageView imageView = nullptr;
-		VmaAllocation allocation = nullptr;
+		VkImage m_Image = nullptr;
+		VkImageView m_ImageView = nullptr;
+		VmaAllocation m_Allocation = nullptr;
 	};
 
 	//Empty 2D 256x256 texture with general layout with value (0.69f, 0.69f, 0.69f, 1.0f). 

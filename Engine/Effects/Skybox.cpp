@@ -6,7 +6,6 @@
 
 #include "stb_image.h"
 
-#include <iostream>
 #include <array>
 
 int Smoothie::DeferredRendering::SkyboxCubemapTexture::create()
@@ -98,7 +97,7 @@ int Smoothie::DeferredRendering::SkyboxCubemapTexture::create()
 		0, nullptr,
 		1, &barrier);
 	_immediateCommandBuffer.end();
-	_immediateCommandBuffer.submit();
+	_immediateCommandBuffer.submitAndWait();
 	_immediateCommandBuffer.destroy();
 
 
@@ -329,7 +328,7 @@ int Smoothie::DeferredRendering::SkyboxCubemapTexture::create_from_hdri_image(co
 	_barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 	vkCmdPipelineBarrier(_commandBuffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, nullptr, 0, nullptr, 1, &_barrier);
 	_immediateCommandBuffer.end();
-	_immediateCommandBuffer.submit();
+	_immediateCommandBuffer.submitAndWait();
 
 
 
@@ -521,8 +520,8 @@ int Smoothie::DeferredRendering::SkyboxCubemapTexture::create_from_hdri_image(co
 	VkPipelineShaderStageCreateInfo stages[] = { vertexShaderPipelineCreateInfo, fragmentShaderPipelineCreateInfo };
 	pipelineInfo.stageCount = 2;
 	pipelineInfo.pStages = stages;
-	DefaultPipelineState __state;
-	__state.populate_pipeline(pipelineInfo);
+	// DefaultPipelineState __state;
+	// __state.populate_pipeline(pipelineInfo);
 	pipelineInfo.layout = pipelineLayout;
 	pipelineInfo.renderPass = rgb32f_RenderPass;
 	pipelineInfo.subpass = 0;
@@ -654,7 +653,7 @@ int Smoothie::DeferredRendering::SkyboxCubemapTexture::create_from_hdri_image(co
 		1, &imageMemoryBarier);
 
 	_immediateCommandBuffer.end();
-	_immediateCommandBuffer.submit();
+	_immediateCommandBuffer.submitAndWait();
 	_immediateCommandBuffer.destroy();
 	
 
@@ -687,86 +686,4 @@ void Smoothie::DeferredRendering::SkyboxCubemapTexture::destroy()
 	imageView = nullptr;
 	vmaDestroyImage(SmoothieCore::getVulkanMemoryAllocator(), image, allocation);
 	image = nullptr, allocation = nullptr;
-}
-
-int Smoothie::DeferredRendering::Skybox::create()
-{
-	if (renderPass == nullptr)
-	{
-		std::cout << "Invalid render pass object!" << std::endl;
-		return 1;
-	}
-
-	const VkDescriptorSetLayout descriptorSets[] =
-	{
-		SmoothieCore::getCameraDescriptorSetLayout(0),
-		this->drawerClassDescriptorSetLayout,
-		HDRCubemap_descriptorSetLayout
-	};
-
-	VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
-	pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-	pipelineLayoutInfo.setLayoutCount = sizeof(descriptorSets) / sizeof(descriptorSets[0]);
-	pipelineLayoutInfo.pSetLayouts = descriptorSets;
-	if (vkCreatePipelineLayout(SmoothieCore::getDevice(), &pipelineLayoutInfo, nullptr, &pipelineLayout) != 0)
-	{
-		std::cout << "Failed to create pipeline layout!" << std::endl;
-		return 1;
-	}
-
-
-	VkPipelineShaderStageCreateInfo vertexShaderPipelineCreateInfo{};
-	vertexShaderPipelineCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-	vertexShaderPipelineCreateInfo.pName = "vertex_skybox";
-	vertexShaderPipelineCreateInfo.stage = VK_SHADER_STAGE_VERTEX_BIT;
-	vertexShaderPipelineCreateInfo.module = m_ShaderModule;
-
-	VkPipelineShaderStageCreateInfo fragmentShaderPipelineCreateInfo{};
-	fragmentShaderPipelineCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-	fragmentShaderPipelineCreateInfo.pName = "fragment_skybox";
-	fragmentShaderPipelineCreateInfo.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
-	fragmentShaderPipelineCreateInfo.module = m_ShaderModule;
-
-	const VkPipelineShaderStageCreateInfo stages[] = { vertexShaderPipelineCreateInfo, fragmentShaderPipelineCreateInfo };
-	VkGraphicsPipelineCreateInfo pipelineInfo{};
-	pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
-	pipelineInfo.stageCount = 2;
-	pipelineInfo.pStages = stages;
-	Smoothie::DefaultPipelineState __state;
-	__state.populate_pipeline(pipelineInfo);
-	auto& depthState = __state.getDepthStencilStateCreateInfo();
-	depthState.depthTestEnable = true;
-	pipelineInfo.pDepthStencilState = &depthState;
-	pipelineInfo.renderPass = renderPass;
-	pipelineInfo.layout = pipelineLayout;
-	if (vkCreateGraphicsPipelines(SmoothieCore::getDevice(), nullptr, 1, &pipelineInfo, nullptr, &pipeline) != VK_SUCCESS)
-	{
-		std::cout << "Failed to create global illumination pipeline!" << std::endl;
-		return 1;
-	}
-
-	return 0;
-}
-
-void Smoothie::DeferredRendering::Skybox::draw(VkCommandBuffer commandBuffer, VkDescriptorSet descriptorSet, unsigned int ImageID) const
-{
-	vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
-	SmoothieCore::setViewport(commandBuffer);
-	SmoothieCore::setScissor(commandBuffer);
-
-	const VkDescriptorSet _descriptors[3] =
-	{
-		SmoothieCore::getCameraDescriptorSet(),
-		descriptorSet,
-		HDRCubemap_descriptorSet
-	};
-
-	vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 3, _descriptors, 0, 0);
-	vkCmdDraw(commandBuffer, 36, 1, 0, 0);
-}
-
-void Smoothie::DeferredRendering::Skybox::destroy()
-{
-	vkDestroyPipeline(SmoothieCore::getDevice(), pipeline, nullptr), pipeline = nullptr;
-	vkDestroyPipelineLayout(SmoothieCore::getDevice(), pipelineLayout, nullptr), pipelineLayout = nullptr;
 }

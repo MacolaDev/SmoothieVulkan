@@ -1,8 +1,5 @@
 #pragma once
-#include <vulkan/vulkan.h>
-
-#include <vector>
-#include <unordered_set>
+#include "Common.h"
 
 #include "Core/Buffer.h"
 #include "Core/Texture.h"

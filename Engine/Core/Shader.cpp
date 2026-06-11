@@ -1,17 +1,20 @@
 #include "Shader.h"
 
-#include <cassert>
-#include <iostream>
-#include <fstream>
-#include "SmoothieCore.h"
 #include <filesystem>
-#include <mutex>
-#include <cstring>
+#include <fstream>
+
+#include "SmoothieCore.h"
+
 
 using namespace Smoothie;
 
-int ShaderFile::serialize(std::ofstream& data){return 0;}
+namespace
+{
+    using Shader_Type_Base_ptr = std::shared_ptr<Shader_Type_Base>;
+}
 
+
+int ShaderFile::serialize(std::ofstream& data){return 0;}
 
 static int _read_std_string(std::ifstream &data, std::string& str)
 {
@@ -115,6 +118,7 @@ int ShaderFile::de_serialize(std::ifstream& file)
 				if (!file.read(reinterpret_cast<std::istream::char_type *>(&_newType->subclass), sizeof(_newType->subclass))) return 1;
 				if (!file.read(reinterpret_cast<std::istream::char_type *>(&_newType->sizeX), sizeof(_newType->sizeX))) return 1;
 				if (!file.read(reinterpret_cast<std::istream::char_type *>(&_newType->sizeY), sizeof(_newType->sizeY))) return 1;
+			    if (!file.read(reinterpret_cast<std::istream::char_type *>(&_newType->count), sizeof(_newType->count))) return 1;
 				m_Types.insert({std::move(_name), std::reinterpret_pointer_cast<Shader_Type_Base>(_newType)});
 
 			}break;
@@ -154,6 +158,539 @@ int ShaderFile::de_serialize(std::ifstream& file)
 
 
 	return 0;
+}
+
+static VkDescriptorType get_descriptor_type_texture(const Shader_Type_Resource& _type)
+{
+    VkDescriptorType _descriptor_type = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+    if (static_cast<bool>(_type.shape_flags & Shader_Type_Resource_ShapeFlags::Combined))
+    {
+        _descriptor_type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    }else if (_type.access == Shader_Type_ResourceAccess::ReadWrite || _type.access == Shader_Type_ResourceAccess::Write)
+    {
+        _descriptor_type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+    }
+    return _descriptor_type;
+}
+
+static VkDescriptorType get_descriptor_type_texture_buffer(const Shader_Type_Resource& _type)
+{
+    VkDescriptorType _descriptor_type = VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER;
+    if (_type.access == Shader_Type_ResourceAccess::ReadWrite || _type.access == Shader_Type_ResourceAccess::Write)
+    {
+        _descriptor_type = VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER;
+    }
+    return _descriptor_type;
+}
+
+static int get_descriptor_write(WriteData_Descriptor& data, unsigned int count, unsigned int offset, const Shader_Type_Resource& resource)
+{
+    data.binding = offset;
+    data.count = count;
+
+    switch (resource.shape)
+    {
+        case Shader_Type_Resource_Shape::Texture1D:
+        case Shader_Type_Resource_Shape::Texture2D:
+        case Shader_Type_Resource_Shape::Texture3D:
+        case Shader_Type_Resource_Shape::TextureCube:
+        {
+            data.type = get_descriptor_type_texture(resource);
+        }
+        break;
+
+
+        case Shader_Type_Resource_Shape::TextureBuffer:
+        {
+            data.type = get_descriptor_type_texture_buffer(resource);
+        }break;
+
+
+        case Shader_Type_Resource_Shape::ConstantBuffer:
+        {
+            data.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        }break;
+
+
+        case Shader_Type_Resource_Shape::SamplerState:
+        {
+            data.type = VK_DESCRIPTOR_TYPE_SAMPLER;
+        }break;
+
+
+        case Shader_Type_Resource_Shape::StructuredBuffer:
+        {
+            data.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+        }break;
+
+        default:
+        {
+            std::cout << "Unknown or unsupported format type: " << std::to_string(static_cast<int>(resource.shape)) << std::endl;
+            return 1;
+        }break;
+    }
+
+    return 0;
+}
+
+static int get_structure_descriptor_data(const std::string&  path,
+    const Shader_Type_Struct& structure,
+    const std::unordered_map<std::string, Shader_Type_Base_ptr>& all_types,
+    std::unordered_map<std::string, WriteData_Descriptor>& descriptor_map,
+    std::unordered_map<std::string, WriteData_Buffer>& uniform_map,
+    unsigned int& binding_offset, unsigned int& uniform_offset)
+{
+
+    for (const auto& _member: structure.members)
+    {
+
+        if (const auto& _type = all_types.find(_member.type); _type == all_types.end())
+        {
+            std::cout << "Could not find type \"" << _member.type << "\" of a variable named \"" << _member.name << "\"" << std::endl;
+            return 1;
+        }
+
+        const auto& _type = all_types.at(_member.type);
+        if (_type == nullptr)
+        {
+            std::cout << "Type: " << _member.name << " does not have a reflection!" << std::endl;
+            return 1;
+        }
+
+
+
+        switch (_type->kind)
+        {
+            case Shader_Type_Kind::Uniform:
+            {
+                assert(false);
+            }break;
+
+
+            case Shader_Type_Kind::Resource:
+            {
+                const auto& _resource = std::dynamic_pointer_cast<Shader_Type_Resource>(_type);
+                if (_resource == nullptr)
+                {
+                    std::cout << R"(Failed to cast type from "Shader_Type_Base" to "Shader_Type_Resource" for variable ")" << _member.name << std::endl;
+                    return 1;
+                }
+
+                WriteData_Descriptor _write_data;
+                if (get_descriptor_write(_write_data, 1, binding_offset, *_resource) != 0)
+                {
+                    std::cout << "Unable to get data for member: " << _member.name << std::endl;
+                    return 1;
+                }
+
+                descriptor_map[path + "." + _member.name] = _write_data;
+                binding_offset++;
+            }break;
+
+
+            case Shader_Type_Kind::Struct:
+            {
+                const auto& _struct = std::dynamic_pointer_cast<Shader_Type_Struct>(_type);
+                if (_struct == nullptr)
+                {
+                    std::cout << R"(Failed to cast type from "Shader_Type_Base" to "Shader_Type_Struct" for variable ")" << _member.name << std::endl;
+                    return 1;
+                }
+
+                if (get_structure_descriptor_data(path + "." + _member.name, *_struct, all_types, descriptor_map, uniform_map, binding_offset, uniform_offset) != 0)
+                {
+                    std::cout << "Unable to get reflection data for \"" << _member.name  << "\"!" << std::endl;
+                    return 1;
+                }
+
+            }break;
+
+
+            default:
+            {
+                std::cout << "Unknown kind of a struct for a member: " << _member.name << std::endl;
+                return 1;
+            }break;
+        }
+
+    }
+
+
+    return 0;
+}
+
+int ShaderFile::get_DescriptorData(
+            const std::string& global_variable,
+            std::unordered_map<std::string, WriteData_Descriptor>& descriptor_map,
+            std::unordered_map<std::string, WriteData_Buffer>& uniform_map)
+{
+    Variable_Global _global_variable;
+    std::size_t _index = 0;
+    for (; _index < m_GlobalVariables.size(); _index++)
+    {
+        if (global_variable == m_GlobalVariables.at(_index).name)
+        {
+            _global_variable = m_GlobalVariables.at(_index);
+            break;
+        }
+    }
+    if (_index >= m_GlobalVariables.size())
+    {
+        std::cout << "No global variable named: " << global_variable << std::endl;
+        return 1;
+    }
+
+    if (m_Types.find(_global_variable.type) == m_Types.end())
+    {
+        std::cout << "Unable to find variable with a name: " << _global_variable.name << std::endl;
+        return 1;
+    }
+
+    const auto& _global_variable_type = m_Types.at(_global_variable.type);
+    if (_global_variable_type == nullptr)
+    {
+        std::cout << "Unknown global variable of a type: " << _global_variable.type << std::endl;
+        return 1;
+    }
+
+    const auto& _global_variable_type_struct = std::dynamic_pointer_cast<Shader_Type_Struct>(_global_variable_type);
+    if (_global_variable_type_struct == nullptr)
+    {
+        std::cout << "Type of the variable \"" << _global_variable.name << "\" must be struct!" << std::endl;
+        return 1;
+    }
+
+    unsigned int _binding_offset = 0, _uniform_offset = 0;
+    if (get_structure_descriptor_data(_global_variable.name, *_global_variable_type_struct, m_Types, descriptor_map, uniform_map, _binding_offset, _uniform_offset) != 0)
+    {
+        std::cout << "Failed to get data!" << std::endl;
+        return 1;
+    }
+
+    return 0;
+}
+
+static int get_resource_descriptor_data(
+    const Shader_Type_Resource& _type,
+    std::vector<VkDescriptorSetLayoutBinding> &bindings,
+    std::vector<VkDescriptorPoolSize> &sizes,
+    unsigned int dst_binding,
+    VkShaderStageFlags stages,
+    unsigned int _array_size = 1)
+{
+
+    if (_array_size == 0)
+    {
+        std::cout << "Invalid number for descriptor count: " << std::to_string(_array_size) << std::endl;
+        return 1;
+    }
+
+    switch (_type.shape)
+    {
+        case Shader_Type_Resource_Shape::Texture1D:
+        case Shader_Type_Resource_Shape::Texture2D:
+        case Shader_Type_Resource_Shape::Texture3D:
+        case Shader_Type_Resource_Shape::TextureCube:
+        {
+            const VkDescriptorType _descriptor_type = get_descriptor_type_texture(_type);
+
+            VkDescriptorSetLayoutBinding _binding = {};
+            _binding.binding = dst_binding;
+            _binding.descriptorType = _descriptor_type;
+            _binding.descriptorCount = _array_size;
+            _binding.stageFlags = stages;
+            _binding.pImmutableSamplers = nullptr;
+            bindings.push_back(_binding);
+
+            VkDescriptorPoolSize _size = {};
+            _size.type = _descriptor_type;
+            _size.descriptorCount = _array_size;
+            sizes.push_back(_size);
+        }
+        break;
+
+
+        case Shader_Type_Resource_Shape::TextureBuffer:
+        {
+            const VkDescriptorType _descriptor_type = get_descriptor_type_texture_buffer(_type);
+
+            VkDescriptorSetLayoutBinding _binding = {};
+            _binding.binding = dst_binding;
+            _binding.descriptorType = _descriptor_type;
+            _binding.descriptorCount = _array_size;
+            _binding.stageFlags = stages;
+            _binding.pImmutableSamplers = nullptr;
+            bindings.push_back(_binding);
+
+            VkDescriptorPoolSize _size = {};
+            _size.type = _descriptor_type;
+            _size.descriptorCount = _array_size;
+            sizes.push_back(_size);
+        }break;
+
+
+        case Shader_Type_Resource_Shape::ConstantBuffer:
+        {
+            VkDescriptorType _descriptor_type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+
+            VkDescriptorSetLayoutBinding _binding = {};
+            _binding.binding = dst_binding;
+            _binding.descriptorType = _descriptor_type;
+            _binding.descriptorCount = _array_size;
+            _binding.stageFlags = stages;
+            _binding.pImmutableSamplers = nullptr;
+            bindings.push_back(_binding);
+
+            VkDescriptorPoolSize _size = {};
+            _size.type = _descriptor_type;
+            _size.descriptorCount = _array_size;
+            sizes.push_back(_size);
+        }break;
+
+
+        case Shader_Type_Resource_Shape::SamplerState:
+        {
+            VkDescriptorType _descriptor_type = VK_DESCRIPTOR_TYPE_SAMPLER;
+
+            VkDescriptorSetLayoutBinding _binding = {};
+            _binding.binding = dst_binding;
+            _binding.descriptorType = _descriptor_type;
+            _binding.descriptorCount = _array_size;
+            _binding.stageFlags = stages;
+            _binding.pImmutableSamplers = nullptr;
+            bindings.push_back(_binding);
+
+            VkDescriptorPoolSize _size = {};
+            _size.type = _descriptor_type;
+            _size.descriptorCount = _array_size;
+            sizes.push_back(_size);
+        }break;
+
+
+        case Shader_Type_Resource_Shape::StructuredBuffer:
+        {
+            VkDescriptorType _descriptor_type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+
+            VkDescriptorSetLayoutBinding _binding = {};
+            _binding.binding = dst_binding;
+            _binding.descriptorType = _descriptor_type;
+            _binding.descriptorCount = _array_size;
+            _binding.stageFlags = stages;
+            _binding.pImmutableSamplers = nullptr;
+            bindings.push_back(_binding);
+
+            VkDescriptorPoolSize _size = {};
+            _size.type = _descriptor_type;
+            _size.descriptorCount = _array_size;
+            sizes.push_back(_size);
+        }break;
+
+
+        default:
+        {
+            std::cout << "Unknown or unsupported format type: " << std::to_string(static_cast<int>(_type.shape)) << std::endl;
+            return 1;
+        }break;
+    }
+
+    return 0;
+}
+
+static int get_struct_info(
+    const Shader_Type_Struct& type_struct,
+    std::vector<VkDescriptorSetLayoutBinding> &bindings,
+    std::vector<VkDescriptorPoolSize> &sizes,
+    unsigned int& _set_binding_offset,
+    const std::unordered_map<std::string, Shader_Type_Base_ptr>& _all_types, VkShaderStageFlags stages)
+{
+    for (const auto& _member: type_struct.members)
+    {
+        if (const auto& _type = _all_types.find(_member.type); _type == _all_types.end())
+        {
+            std::cout << "Could not find type \"" << _member.type << "\" of a variable named \"" << _member.name << "\"" << std::endl;
+            return 1;
+        }
+
+        const auto& _type = _all_types.at(_member.type);
+        if (_type == nullptr)
+        {
+            std::cout << "Type: " << _member.name << " does not have a reflection!" << std::endl;
+            return 1;
+        }
+
+        switch (_type->kind)
+        {
+            default:
+            {
+                std::cout << "Unknown Kind of reflected object for member: " << _member.name << std::endl;
+                return 1;
+            }break;
+
+            case Shader_Type_Kind::Uniform:
+            {
+
+                const auto& _uniform = std::dynamic_pointer_cast<Shader_Type_Uniform>(_type);
+                if (_uniform == nullptr)
+                {
+                    std::cout << R"(Failed to cast type from "Shader_Type_Base" to "Shader_Type_Resource" for variable ")" << _member.name << std::endl;
+                    return 1;
+                }
+
+                if (_all_types.find(_uniform->userType) == _all_types.end())
+                {
+                    std::cout << "No type named: " << _uniform->userType << std::endl;
+                    return 1;
+                }
+
+                const auto& _user_type = _all_types.at(_uniform->userType);
+                if (_user_type == nullptr)
+                {
+                    std::cout << R"(Failed to cast type from "Shader_Type_Base" to "Shader_Type_Uniform" for variable ")" << _member.name << std::endl;
+                }
+
+
+                if (std::dynamic_pointer_cast<Shader_Type_Struct>(_user_type) != nullptr)
+                {
+                    std::cout << "Feature not yet implemented! Can't do array for structs in this context! " << __FILE__ << ":" << std::to_string(__LINE__) << std::endl;
+                    return 1;
+                }
+
+                const auto& _user_type_rss = std::dynamic_pointer_cast<Shader_Type_Resource>(_user_type);
+                if (_user_type_rss == nullptr){break;}
+
+                if (get_resource_descriptor_data(*_user_type_rss, bindings, sizes, _set_binding_offset, stages, _uniform->count) != 0)
+                {
+                    std::cout << "Unable to parse element: " << _member.name << std::endl;
+                    return 1;
+                }
+                _set_binding_offset += 1;
+
+            }break;
+
+            case Shader_Type_Kind::Resource:
+            {
+                const auto& _resource = std::dynamic_pointer_cast<Shader_Type_Resource>(_type);
+                if (_resource == nullptr)
+                {
+                    std::cout << R"(Failed to cast type from "Shader_Type_Base" to "Shader_Type_Resource" for variable ")" << _member.name << std::endl;
+                    return 1;
+                }
+
+                if (get_resource_descriptor_data(*_resource, bindings, sizes, _set_binding_offset, stages) != 0)
+                {
+                    std::cout << "Unable to parse element: " << _member.name << std::endl;
+                    return 1;
+                }
+                _set_binding_offset += 1;
+
+            }break;
+
+            case Shader_Type_Kind::Struct:
+            {
+                const auto& _struct = std::dynamic_pointer_cast<Shader_Type_Struct>(_type);
+                if (_struct == nullptr)
+                {
+                    std::cout << R"(Failed to cast type from "Shader_Type_Base" to "Shader_Type_Struct" for variable ")" << _member.name<< "\"!"  << std::endl;
+                    return 1;
+                }
+
+                if (get_struct_info(*_struct, bindings, sizes, _set_binding_offset, _all_types, stages) != 0)
+                {
+                    std::cout << "Failed to get info from struct." << std::endl;
+                    return 1;
+                }
+
+            } break;
+        }
+
+
+    }
+
+    return 0;
+}
+
+
+int ShaderFile::get_DescriptorData(
+    const std::string &globalVarName,
+    std::vector<VkDescriptorSetLayoutBinding> &bindings,
+    std::vector<VkDescriptorPoolSize> &sizes,
+    VkShaderStageFlags stages) const
+{
+    Variable_Global _globalDescriptorSet;
+    for (const auto& _global_variable : m_GlobalVariables)
+    {
+        if (_global_variable.name == globalVarName)
+        {
+            _globalDescriptorSet = _global_variable;
+            break;
+        }
+    }
+
+    if (_globalDescriptorSet.name.empty())
+    {
+        std::cout << "Failed to get global descriptor set variable!" << std::endl;
+        return 1;
+    }
+
+
+    if (m_Types.empty())
+    {
+        std::cout << "No types in the shader!" << std::endl;
+        return 1;
+    }
+
+    if (const auto& _struct = m_Types.find(_globalDescriptorSet.type); _struct == m_Types.end())
+    {
+        std::cout << "Failed to get global descriptor set type!" << std::endl;
+        return 1;
+    }
+
+    const auto& _global_type = m_Types.at(_globalDescriptorSet.type);
+    if (_global_type == nullptr)
+    {
+        std::cout << "Failed to get global descriptor set type!" << std::endl;
+        return 1;
+    }
+
+    if (_global_type->kind != Shader_Type_Kind::Struct)
+    {
+        std::cout << "Global descriptor type set MUST be struct!" << std::endl;
+        return 1;
+    }
+
+    const auto _global_type_struct = std::dynamic_pointer_cast<Shader_Type_Struct>(_global_type);
+    if (_global_type_struct == nullptr)
+    {
+        std::cout << "Failed to cast the type from Shader_Type_Base to Shader_Type_Struct" << std::endl;
+        return 1;
+    }
+
+    unsigned int _binding_offset = 0;
+    for (const auto& _member: _global_type_struct->members)
+    {
+        if (_member.uniform_offset != 0)
+        {
+
+            VkDescriptorSetLayoutBinding _binding = {};
+            _binding.binding = 0;
+            _binding.descriptorCount = 1;
+            _binding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+            _binding.pImmutableSamplers = nullptr;
+            bindings.push_back(_binding);
+            sizes.push_back({VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1});
+            _binding_offset = 1;
+        }
+    }
+
+
+    if (get_struct_info(*_global_type_struct, bindings, sizes, _binding_offset, m_Types, stages))
+    {
+        std::cout << "Failed to get info from struct." << std::endl;
+        return 1;
+    }
+
+
+    return 0;
 }
 
 int Smoothie::ShaderFile::create(const std::string& shaderFile)

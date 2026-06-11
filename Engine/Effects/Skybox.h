@@ -1,7 +1,5 @@
 #pragma once
-#include <vulkan/vulkan.h>
-#include "vk_mem_alloc.h"
-#include <string>
+#include <Core/Common.h>
 
 namespace Smoothie 
 {
@@ -34,25 +32,6 @@ namespace Smoothie
 			
 			inline VkDescriptorSet getDescriptorSet() const { return descriptorSet; }
 			inline VkDescriptorSetLayout getDescriptorSetLayout() const { return descriptorSetLayout; }
-		};
-
-		class Skybox
-		{
-			VkPipeline pipeline = nullptr;
-			VkPipelineLayout pipelineLayout = nullptr;
-		public:
-			VkDescriptorSet HDRCubemap_descriptorSet = nullptr;
-			VkDescriptorSetLayout HDRCubemap_descriptorSetLayout = nullptr;
-
-			VkRenderPass renderPass = nullptr;
-			VkDescriptorSetLayout drawerClassDescriptorSetLayout = nullptr;
-
-			VkShaderModule m_ShaderModule = nullptr;
-
-			int create();
-			void draw(VkCommandBuffer commandBuffer, VkDescriptorSet descriptorSet, unsigned int ImageID) const;
-			void destroy();
-
 		};
 
 	}

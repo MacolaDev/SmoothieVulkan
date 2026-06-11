@@ -1,24 +1,11 @@
 #pragma once
-#include <vulkan/vulkan.h>
-
-#include <string>
-#include <vector>
+#include "Core/Common.h"
 
 #include <Math/SmoothieMath.h>
 #include "ResourceManager/XML.h"
 
 namespace Smoothie 
 {
-
-	class Model_Base 
-	{
-	public:
-		virtual int create() = 0;
-		virtual int update() = 0;
-		virtual void destroy() = 0;
-		virtual ~Model_Base() = default;
-	};
-
 	//Class used for parsing model files.
 	class ModelFile
 	{

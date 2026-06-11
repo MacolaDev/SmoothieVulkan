@@ -1,26 +1,15 @@
 #pragma once
-#include <string>
-#include <optional>
-#include <unordered_map>
-#include <memory>
-#include <array>
-#include <vector>
+#include "Common.h"
 #include <queue>
 
-#include <vulkan/vulkan.h>
-#include "vk_mem_alloc.h"
-
-#include "Core/Multithreading.h"
 #include "Core/Camera.h"
 #include "Core/Scene.h"
-#include "Core/RenderPass.h"
 #include "Core/Constants.h"
 #include "Core/Texture.h"
 #include "Core/Buffer.h"
-#include "Core/Pipeline.h"
+
 #include "Core/Model.h"
 #include "Core/Drawing.h"
-#include "Core/CameraDescriptor.h"
 
 #include "Effects/Deferred_Core.h"
 
@@ -107,14 +96,10 @@ public:
     static inline VkFramebuffer getSwapchainFramebuffer(unsigned int index) { return swapchainFramebuffers[index]; }
     static inline VmaAllocator getVulkanMemoryAllocator() { return vmaAllocator; }
 
-    static inline VkDescriptorSet getCameraDescriptorSet() { return cameraDescriptorSets[currentFrame].getDescriptorSet(); }
-    static inline VkDescriptorSetLayout getCameraDescriptorSetLayout(unsigned int index) { return cameraDescriptorSets[index].getDescriptorLayout(); }
     
     static inline std::vector<VkImage> getSwapchainImages() { return swapchainImages; }
     static inline std::vector<VkImageView> getSwapchainImageViews() { return swapchainImageViews; }
     static inline std::vector<VkFramebuffer> getSwapchainFramebuffers() { return swapchainFramebuffers; }
-
-    static int SubmitToExecutionQueue(const Smoothie::QueuedSubmitInfo& submitInfo);
 
 
     //Notify engine about thread whose execution is not implicitly synchronized by the user.
@@ -131,10 +116,6 @@ public:
 
     static inline Smoothie::Drawing_Base* getDrawingClass() { return drawerClass.get(); }
     static inline std::shared_ptr<Smoothie::Drawing_Base>& getDrawingClassPtr() {return drawerClass; }
-
-    //Generates a new random value between 1 to 2,147,483,648
-    //used for creating IDs of various objects
-    static unsigned int generate_random_key();
 
     static inline void setViewport(VkCommandBuffer commandBuffer) 
     {
@@ -159,7 +140,8 @@ public:
     static inline Smoothie::DefaultTexture2D getDefault2DTexture() { return default2dTexture; }
     static inline Smoothie::DefaultBuffer getDefaultBuffer() { return defaultBuffer; }
     
-    
+    static inline std::mutex& getQueueSubmitMutex() {return s_QueueSubmitMutex;}
+
     SmoothieCore(const SmoothieCore&) = delete;
 private:
 
@@ -174,8 +156,9 @@ private:
     static std::array<VkFence, SMOOTHIE_MAX_FRAMES_IN_FLIGHT> inFlightFences;
     static unsigned int currentFrame;
 
-    static std::queue<Smoothie::QueuedSubmitInfo> s_PendingQueue;
     static std::queue<std::future<void>> s_PendingFutures;
+    static std::mutex s_QueueSubmitMutex;
+
 
     static VkInstance instance;
     static VkPhysicalDevice physicalDevice;
@@ -203,8 +186,6 @@ private:
 
     static unsigned int SCR_WIDTH, SCR_HEIGHT;
     static SmoothieMath::Matrix4x4 cameraProjectionViewMatrix;
-
-    static std::vector<Smoothie::CameraDescriptorSet> cameraDescriptorSets;
     
     static VmaAllocator vmaAllocator;
 

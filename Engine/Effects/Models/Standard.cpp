@@ -1,6 +1,9 @@
-#include "Deferred_Model.h"
+#include "Standard.h"
 #include "Core/SmoothieCore.h"
-#include "Deferred_Pipeline.h"
+#include "../Pipelines/Standard.h"
+
+#include <cassert>
+
 #include "Effects/Deferred_Core.h"
 #include <cstring>
 #include <iostream>
@@ -27,29 +30,19 @@ static inline void fill_descriptor_with_buffer_data(VkDescriptorSet& descriptorS
 	vkUpdateDescriptorSets(SmoothieCore::getDevice(), 1, &__write_descriptor_set, 0, nullptr);
 }
 
-static std::mutex _add_model_matrix_mutex;
-void Deferred_Model::add_model_matrix(const SmoothieMath::Matrix4x4 &matrix)
-{
-	std::lock_guard<std::mutex> _lock(_add_model_matrix_mutex);
-	m_ModelMatrices.push_back(matrix);
-}
 
-
-static std::mutex _add_pipelines_mutex;
-int Smoothie::DeferredRendering::Standard_Model::create()
+int Smoothie::DeferredRendering::Model_Standard::create()
 {
+    assert(m_Filepath.size() > 0);
+
 	auto _drawingClass = std::dynamic_pointer_cast<Smoothie::DeferredRendering::Drawing>(SmoothieCore::getDrawingClassPtr());
 	if (_drawingClass == nullptr)
 	{
 		std::cout << "Failed to get drawing class!" << std::endl;
+	    destroy();
 		return 1;
 	}
 
-	if (m_modelFile.create() != 0)
-	{
-		std::cout << "Failed to parse model file!" << std::endl;
-		return 1;
-	}
 
 
 	int _error = 0;
@@ -97,21 +90,21 @@ int Smoothie::DeferredRendering::Standard_Model::create()
 	// }
 	// _add_pipelines_mutex.unlock();
 
-	const auto* _pipeline = dynamic_cast<const StaticPipeline*>(m_pPipeline.get());
-	if (_pipeline == nullptr)
-	{
-		std::cout << "Pipeline must be StaticPipeline!" << std::endl;
-		return 1;
-	}
+	// const auto* _pipeline = dynamic_cast<const StaticPipeline*>(m_pPipeline.get());
+	// if (_pipeline == nullptr)
+	// {
+	// 	std::cout << "Pipeline must be StaticPipeline!" << std::endl;
+	// 	return 1;
+	// }
 
 
 	//***************************** Descriptors ************************************//
-	VkDescriptorSetLayout _pipeline_descriptor_set_layout = _pipeline->getPipelineDescriptorSetLayout();
-	if (_pipeline_descriptor_set_layout == nullptr)
-	{
-		std::cout << "Draw class descriptor set is not valid!" << std::endl;
-		return 1;
-	}
+	// VkDescriptorSetLayout _pipeline_descriptor_set_layout = _pipeline->getPipelineDescriptorSetLayout();
+	// if (_pipeline_descriptor_set_layout == nullptr)
+	// {
+	// 	std::cout << "Draw class descriptor set is not valid!" << std::endl;
+	// 	return 1;
+	// }
 
 	//const auto& _descriptor_data = _pipeline->getDescriptorData();
 	VkDescriptorPoolCreateInfo _descriptorPoolCreateInfo = {};
@@ -120,7 +113,7 @@ int Smoothie::DeferredRendering::Standard_Model::create()
 	_descriptorPoolCreateInfo.pNext = nullptr;
 	//_descriptorPoolCreateInfo.poolSizeCount = _descriptor_data.getPoolSizes().size();
 	//_descriptorPoolCreateInfo.pPoolSizes = _descriptor_data.getPoolSizes().data();
-	if (vkCreateDescriptorPool(SmoothieCore::getDevice(), &_descriptorPoolCreateInfo, nullptr, &descriptorPool) != VK_SUCCESS)
+	if (vkCreateDescriptorPool(SmoothieCore::getDevice(), &_descriptorPoolCreateInfo, nullptr, &m_DescriptorPool) != VK_SUCCESS)
 	{
 		std::cout << "Failed to create descriptor pool!" << std::endl;
 		return 1;
@@ -128,10 +121,10 @@ int Smoothie::DeferredRendering::Standard_Model::create()
 
 	VkDescriptorSetAllocateInfo _allocate_info{};
 	_allocate_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-	_allocate_info.descriptorPool = descriptorPool;
+	_allocate_info.descriptorPool = m_DescriptorPool;
 	_allocate_info.descriptorSetCount = 1;
-	_allocate_info.pSetLayouts = &_pipeline_descriptor_set_layout;
-	if (vkAllocateDescriptorSets(SmoothieCore::getDevice(), &_allocate_info, &descriptorSet) != VK_SUCCESS)
+	//_allocate_info.pSetLayouts = &_pipeline_descriptor_set_layout;
+	if (vkAllocateDescriptorSets(SmoothieCore::getDevice(), &_allocate_info, &m_DescriptorSet) != VK_SUCCESS)
 	{
 		std::cout << "Failed to allocate descriptor set!" << std::endl;
 		return 1;
@@ -279,12 +272,16 @@ int Smoothie::DeferredRendering::Standard_Model::create()
     return 0;
 }
 
-int Standard_Model::update()
+int Smoothie::DeferredRendering::Model_Standard::update()
 {
 	return 0;
 }
 
-void Smoothie::DeferredRendering::Standard_Model::draw(VkCommandBuffer commandBuffer, VkPipelineLayout pipelineLayout, VkDescriptorSet drawingClassDescriptor, unsigned int FrameID) const
+void Smoothie::DeferredRendering::Model_Standard::draw(
+                VkCommandBuffer commandBuffer,
+                VkPipelineLayout pipelineLayout,
+                VkDescriptorSet drawingClassDescriptor,
+                unsigned int ImageIndex) const
 {
 	const VkDeviceSize _offsets[] = { 0 };
 	vkCmdBindVertexBuffers(commandBuffer, 0, 1, &m_vertexBuffer, _offsets);
@@ -304,35 +301,40 @@ void Smoothie::DeferredRendering::Standard_Model::draw(VkCommandBuffer commandBu
 	
 	const VkDescriptorSet descriptorSets[] =
 	{
-		SmoothieCore::getCameraDescriptorSet(),
+		//SmoothieCore::getCameraDescriptorSet(),
 		drawingClassDescriptor,
-		descriptorSet
+		m_DescriptorSet
 	};
 	
 	vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 3, descriptorSets, 0, nullptr);
 	vkCmdDrawIndexed(commandBuffer, m_numberOfIndices, 1, 0, 0, 0);
 }
 
-void Smoothie::DeferredRendering::Standard_Model::drawShadow(const SmoothieMath::Matrix4x4 lightProjViewMat, VkPipelineLayout pipelineLayout, VkCommandBuffer commandBuffer, unsigned int FrameID) const
+// void Smoothie::DeferredRendering::Standard_Model::drawShadow(const SmoothieMath::Matrix4x4 lightProjViewMat, VkPipelineLayout pipelineLayout, VkCommandBuffer commandBuffer, unsigned int FrameID) const
+// {
+// }
+
+void Smoothie::DeferredRendering::Model_Standard::add_model_matrix(const SmoothieMath::Matrix4x4& matrix)
 {
+
 }
 
-void Smoothie::DeferredRendering::Standard_Model::destroy()
+void Smoothie::DeferredRendering::Model_Standard::destroy()
 {
-	
+
 	//Pipeline itself should be destroyed by the drawing class
 
-	//Smoothie::Mesh::removeResource(m_modelFile.getGeometryFile());
-	for (const auto& _texture: m_Textures)
-	{
-		//Smoothie::Texture2D::removeResource(_texture);
-	}
-	m_Textures.clear();
+    if (m_ModelUniformBuffer != nullptr && m_ModelUniformBufferAllocation != nullptr)
+    {
+        vmaDestroyBuffer(SmoothieCore::getVulkanMemoryAllocator(), m_ModelUniformBuffer, m_ModelUniformBufferAllocation);
+        m_ModelUniformBuffer = nullptr, m_ModelUniformBufferAllocation = nullptr;
+    }
 
-	vmaDestroyBuffer(SmoothieCore::getVulkanMemoryAllocator(), m_ModelUniformBuffer, m_ModelUniformBufferAllocation);
-	m_ModelUniformBuffer = nullptr, m_ModelUniformBufferAllocation = nullptr;
-	
-	vkDestroyDescriptorPool(SmoothieCore::getDevice(), descriptorPool, nullptr);
-	descriptorPool = nullptr, descriptorSet = nullptr;
-	//ShaderFile::removeResource(m_modelFile.getShaderFile());
+    if (m_DescriptorPool != nullptr)
+    {
+        vkDestroyDescriptorPool(SmoothieCore::getDevice(), m_DescriptorPool, nullptr);
+        m_DescriptorPool = nullptr, m_DescriptorSet = nullptr;
+    }
+
+    m_Filepath.erase();
 }

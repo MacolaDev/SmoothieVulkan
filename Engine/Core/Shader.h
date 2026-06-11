@@ -1,10 +1,5 @@
 #pragma once
-#include <vulkan/vulkan.h>
-
-#include <string>
-#include <vector>
-#include <memory>
-#include <unordered_map>
+#include "Common.h"
 
 #define SMOOTHIE_ENABLE_BITMASK_OPERATORS(x) \
 inline x operator|(x a, x b) { \
@@ -85,7 +80,6 @@ namespace Smoothie
 		virtual ~Shader_Type_Base() = default;
 	};
 
-
 	enum class Shader_Types_Scalar: int
 	{
 		None = 0,
@@ -105,6 +99,8 @@ namespace Smoothie
 		UInt8 = 11,
 		Int16 = 12,
 		UInt16 = 13,
+
+	    Unknown
 	};
 
 	enum class Shader_Type_UniformSubclass: int
@@ -114,6 +110,7 @@ namespace Smoothie
 		Vector = 2,
 		Matrix = 3,
 		Array = 4,
+	    Unknown
 	};
 
 	struct Shader_Type_Uniform: public Shader_Type_Base
@@ -123,12 +120,13 @@ namespace Smoothie
 		Shader_Type_UniformSubclass subclass = Shader_Type_UniformSubclass::None;
 		unsigned int sizeX = 0;
 		unsigned int sizeY = 0;
+	    unsigned int count = 0;
 
 		inline bool isArray() const {return subclass == Shader_Type_UniformSubclass::Array;}
 		inline bool isMatrix() const {return subclass == Shader_Type_UniformSubclass::Matrix;}
 		inline bool isVector() const {return subclass == Shader_Type_UniformSubclass::Vector;}
 		inline bool isScalar() const {return subclass == Shader_Type_UniformSubclass::Scalar;}
-		inline unsigned int get_ArraySize() const {return sizeX;}
+		inline unsigned int getArraySize() const {return count;}
 
 		explicit Shader_Type_Uniform(): Shader_Type_Base(Shader_Type_Kind::Uniform) {}
 	};
@@ -139,14 +137,14 @@ namespace Smoothie
 		explicit Shader_Type_Struct(): Shader_Type_Base(Shader_Type_Kind::Struct){};
 	};
 
-
 	enum class Shader_Type_ResourceAccess
 	{
 		None = 0,
 		Read = 1,
 		Write = 2,
 		ReadWrite = 3,
-		Unknown = 4,
+	    Append = 4,
+		Unknown,
 	};
 
 	enum class Shader_Type_Resource_Shape
@@ -156,8 +154,12 @@ namespace Smoothie
 		Texture2D = 2,
 		Texture3D = 3,
 		TextureCube = 4,
+
 		TextureBuffer = 5,
+
 		StructuredBuffer = 6,
+	    SamplerState = 7,
+	    ConstantBuffer,
 		Unknown
 	};
 
@@ -166,6 +168,7 @@ namespace Smoothie
 		None = 0,
 		Array = 1 << 0,
 		Multisample = 1 << 1,
+	    Combined = 1 << 2
 	};
 	SMOOTHIE_ENABLE_BITMASK_OPERATORS(Shader_Type_Resource_ShapeFlags)
 
@@ -212,6 +215,23 @@ namespace Smoothie
 	};
 	SMOOTHIE_ENABLE_BITMASK_OPERATORS(ShaderFile_CreateFlags)
 
+
+    struct WriteData_Descriptor
+	{
+	    unsigned int binding = 0;
+        VkDescriptorType type = VK_DESCRIPTOR_TYPE_MAX_ENUM;
+	    unsigned int count = 0;
+	};
+
+    struct WriteData_Buffer
+    {
+        unsigned int offset = 0;
+        VkFormat base_format = VK_FORMAT_UNDEFINED;
+        unsigned int size_x = 0;
+        unsigned int size_y = 0;
+        unsigned int count = 0;
+    };
+
 	//Main class for shader files, with reflections.
 	//WARNING: Current reflection API is not supposed to reflect every possible combinations of input resources for a shader.
 	//Check the description of every reflected object (like entry points, structures, global resources etc.) for additional information about their reflection.
@@ -234,6 +254,18 @@ namespace Smoothie
 		virtual int de_serialize(std::ifstream& file);
 
 	public:
+
+
+        int get_DescriptorData(
+            const std::string& global_variable,
+            std::unordered_map<std::string, WriteData_Descriptor>& descriptor_map,
+            std::unordered_map<std::string, WriteData_Buffer>& uniform_map);
+
+	    int get_DescriptorData(
+	        const std::string& globalVarName,
+	        std::vector<VkDescriptorSetLayoutBinding>& bindings,
+	        std::vector<VkDescriptorPoolSize>& sizes,
+	        VkShaderStageFlags stages = VK_SHADER_STAGE_COMPUTE_BIT | VK_SHADER_STAGE_ALL_GRAPHICS) const;
 
 		inline const std::vector<unsigned int>& get_SPIR_V_CODE() const { return m_SPIR_V_CODE; }
 		inline const std::vector<Shader_EntryPoint>& get_EntryPoints() const { return m_EntryPoints; }

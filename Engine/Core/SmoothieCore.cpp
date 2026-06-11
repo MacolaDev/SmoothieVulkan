@@ -1,29 +1,14 @@
 #include "SmoothieCore.h"
 
-#include <cassert>
-#include <vulkan/vulkan.h>
-
-#include <iostream>
-#include <random>
-
-#include "Core/RenderPass.h"
-#include "Core/CameraDescriptor.h"
 #include "Core/Multithreading.h"
 
-#include "Effects/Deferred_Pipeline.h"
+#include "../Effects/Pipelines/Standard.h"
 using namespace Smoothie;
 
 bool SmoothieCore::isEngineReady = false;
 
 unsigned int SmoothieCore::SCR_WIDTH = 1280;
 unsigned int SmoothieCore::SCR_HEIGHT = 720;
-
-constexpr float apsect_ratio = static_cast<float>(1280.0f / 720.0f);
-const Smoothie::Camera defaultCamera = Smoothie::Camera(
-	{ -0.5, 3.0f, 18.0f }, 
-	{ 0.0f, 0.0f, -1.0f },
-	{ 0.0f, 1.0f, 0.0f },
-	45.0f, apsect_ratio, 0.1f, 100.0f);
 
 VkSwapchainKHR SmoothieCore::swapchain = nullptr;
 std::vector<VkImage> SmoothieCore::swapchainImages;
@@ -65,8 +50,6 @@ static int create_vulkan_allocator(VmaAllocator& allocator)
 	}
 	return 0;
 }
-
-std::vector<CameraDescriptorSet> SmoothieCore::cameraDescriptorSets;
 
 Smoothie::DefaultTexture2D SmoothieCore::default2dTexture;
 Smoothie::DefaultBuffer SmoothieCore::defaultBuffer;
@@ -195,17 +178,6 @@ int SmoothieCore::initEngine
 	}
 
 
-	cameraDescriptorSets.resize(SMOOTHIE_MAX_FRAMES_IN_FLIGHT);
-	for (size_t i = 0; i < SMOOTHIE_MAX_FRAMES_IN_FLIGHT; i++)
-	{
-		if (cameraDescriptorSets[i].create() != 0)
-		{
-			std::cout << "Failed to create Camera descriptor sets!" << std::endl;
-			return 1;
-		}
-		cameraDescriptorSets[i].update_camera_data(defaultCamera.getCameraBufferData());
-	}
-
 	if (create_renderer() != 0)
 	{
 		std::cout << "Failed to create renderer!" << std::endl;
@@ -254,11 +226,6 @@ int SmoothieCore::finitEngine()
 
 	destroy_renderer();
 
-	for (size_t i = 0; i < cameraDescriptorSets.size(); i++)
-	{
-		cameraDescriptorSets[i].destroy();
-	}
-	
 	defaultBuffer.destroy();
 	default2dTexture.destroy();
 
@@ -338,10 +305,10 @@ void SmoothieCore::removeScene()
 
 void SmoothieCore::updateCameraData(const Smoothie::Camera& camera)
 {
-	auto uniformBufferData = camera.getCameraBufferData();
-	uniformBufferData.SCR_WIDTH = SCR_WIDTH;
-	uniformBufferData.SCR_HEIGHT = SCR_HEIGHT;
-	cameraDescriptorSets[currentFrame].update_camera_data(uniformBufferData);
+    if (drawerClass != nullptr)
+    {
+        drawerClass->update_camera(camera);
+    }
 }
 
 void SmoothieCore::updateRenderingResolution(unsigned int windowWidth, unsigned int windowHeight)
@@ -400,28 +367,13 @@ void SmoothieCore::updateRenderingResolution(unsigned int windowWidth, unsigned 
 	}
 }
 
-std::queue<Smoothie::QueuedSubmitInfo> SmoothieCore::s_PendingQueue;
-static std::mutex s_PendingQueueMutex;
-int SmoothieCore::SubmitToExecutionQueue(const Smoothie::QueuedSubmitInfo &submitInfo)
-{
-	std::lock_guard<std::mutex> lock(s_PendingQueueMutex);
-	s_PendingQueue.push(submitInfo);
-	return 0;
-}
+std::mutex SmoothieCore::s_QueueSubmitMutex;
 
 static std::mutex s_PendingFutures_Mutex;
 void SmoothieCore::Submit_ExecutionThread(std::future<void> future)
 {
 	std::lock_guard<std::mutex> _lock(s_PendingFutures_Mutex);
 	s_PendingFutures.push(std::move(future));
-}
-
-unsigned int SmoothieCore::generate_random_key()
-{
-	std::random_device rd;
-	std::mt19937 gen(rd());
-	std::uniform_int_distribution<unsigned int> dist(1, std::numeric_limits<unsigned int>::max());
-	return dist(gen);
 }
 
 std::array<VkCommandBuffer, SMOOTHIE_MAX_FRAMES_IN_FLIGHT> SmoothieCore::renderCommandBuffers;
@@ -534,6 +486,9 @@ void SmoothieCore::draw()
 	if (__editor_core != nullptr) __editor_core->on_command_record_time(renderCommandBuffers[currentFrame], imageIndex);
 	vkEndCommandBuffer(renderCommandBuffers[currentFrame]);
 
+    auto _graphics_queue = SmoothieCore::getGraphicsQueue();
+    auto _present_queue = SmoothieCore::getPresentQueue();
+
 	VkSubmitInfo submitInfo{};
 	submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 	submitInfo.waitSemaphoreCount = 1;
@@ -544,7 +499,10 @@ void SmoothieCore::draw()
 	submitInfo.pCommandBuffers = &renderCommandBuffers[currentFrame];
 	submitInfo.signalSemaphoreCount = 1;
 	submitInfo.pSignalSemaphores = &renderFinishedSemaphores[imageIndex];
-	vkQueueSubmit(SmoothieCore::getGraphicsQueue(), 1, &submitInfo, inFlightFences[currentFrame]);
+    {
+        std::lock_guard<std::mutex> _lock(s_QueueSubmitMutex);
+        vkQueueSubmit(_graphics_queue, 1, &submitInfo, inFlightFences[currentFrame]);
+    }
 
 	auto swapchain = getSwapchain();
 	VkPresentInfoKHR presentInfo{};
@@ -554,16 +512,16 @@ void SmoothieCore::draw()
 	presentInfo.swapchainCount = 1;
 	presentInfo.pSwapchains = &swapchain;
 	presentInfo.pImageIndices = &imageIndex;
-	vkQueuePresentKHR(SmoothieCore::getPresentQueue(), &presentInfo);
 
-	if (!s_PendingQueue.empty())
-	{
-		const auto& _submission = s_PendingQueue.front();
-		assert(_submission.queue != nullptr);
-		vkQueueWaitIdle(_submission.queue);
-		vkQueueSubmit(_submission.queue, _submission.submitInfos.size(), _submission.submitInfos.data(), _submission.fence);
-		s_PendingQueue.pop();
-	}
+    if (_graphics_queue == _present_queue)
+    {
+        std::lock_guard<std::mutex> _lock(s_QueueSubmitMutex);
+        vkQueuePresentKHR(_present_queue, &presentInfo);
+    }else
+    {
+        vkQueuePresentKHR(_present_queue, &presentInfo);
+    }
+
 	currentFrame = (currentFrame + 1) % SMOOTHIE_MAX_FRAMES_IN_FLIGHT;
 }
 

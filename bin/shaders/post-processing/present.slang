@@ -1,17 +1,5 @@
+#include "../Smoothie.slang"
 
-//layout (std140, binding = 1) uniform Standard2
-//{
-//    int SCR_WIDTH;
-//	int SCR_HEIGHT;
-//	int time;
-//
-//	float sunSize;
-//	vec3 sunPosition;
-//	vec3 sunColor;
-//	float padding;
-//	float sunStrength;
-//	float Luminance;
-//};
 
 static const float3x3 ACESInputMat = float3x3
 (
@@ -43,27 +31,34 @@ float3 ASECFittet(float3 color)
 	return color;
 }
 
-float2 flipUV(float2 uv)
-{
-    return float2(uv.x, 1.0 - uv.y);
-}
 
 static const float luminance = 0.9f;
 static const float exposure = 0.3f;
 static const float bloomIntensity = 0.1f;
 
-[vk_binding(0, 2)] Sampler2D HDRImage;
-[vk_binding(1, 2)] Sampler2D BloomImage;
+struct PresentData
+{
+    //Texture2D Bloom_Image;
+}
+
+ParameterBlock<Smoothie_Globals> g_GlobalData;
+ParameterBlock<PresentData> g_PresentData;
 
 [shader("fragment")]
 float4 fragment_PRESENT(float2 TexCoords)
 {
-	float3 final = float3(0.0f, 0.0f, 0.0f);
-	float3 hdrImage = HDRImage.Sample(flipUV(TexCoords)).rgb;
-	float3 bloom = BloomImage.Sample(flipUV(TexCoords)).rgb;
 
-	final += hdrImage;
-	final += bloom * bloomIntensity;
+    var _samplers = g_GlobalData.samplers;
+    var _attachments = g_GlobalData.attachments;
+    
+    float2 _uv = float2(TexCoords.x, 1.0 - TexCoords.y);
+    float3 final = float3(0.0f, 0.0f, 0.0f);
+
+    float3 hdrImage = _attachments.HDR.Sample(_samplers.Texture2DSampler, _uv).rgb;
+    final += hdrImage;
+
+	//float3 bloom = g_PresentData.Bloom_Image.Sample(_samplers.Texture2DSampler, _uv).rgb;
+	//final += bloom * bloomIntensity;
 	
 	// vec3 godRays = texture(godRaysImage, flipUV(TexCoords)).rgb;
 	// final += godRays;
@@ -77,4 +72,31 @@ float4 fragment_PRESENT(float2 TexCoords)
 	final = pow(final, float3(1/2.2f));
 
 	return float4(final, 1.0f);
+}
+
+static const float2 aPos_QUAD[6] =
+    {
+        float2(-1.0f, 1.0f),
+        float2(-1.0f, -1.0f),
+        float2(1.0f, -1.0f),
+        float2(-1.0f, 1.0f),
+        float2(1.0f, -1.0f),
+        float2(1.0f, 1.0f)
+    };
+
+static const float2 aTexCoords_QUAD[6] =
+    {
+        float2(0.0f, 1.0f),
+        float2(0.0f, 0.0f),
+        float2(1.0f, 0.0f),
+        float2(0.0f, 1.0f),
+        float2(1.0f, 0.0f),
+        float2(1.0f, 1.0f)
+    };
+
+[shader("vertex")]
+float2 vertex_QUAD(int vertexIndex: SV_VulkanVertexID, out float4 position: SV_Position)
+{
+    position = float4(aPos_QUAD[vertexIndex].x, aPos_QUAD[vertexIndex].y, 0.0, 1.0);
+    return aTexCoords_QUAD[vertexIndex];
 }

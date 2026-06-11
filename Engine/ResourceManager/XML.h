@@ -1,7 +1,5 @@
 #pragma once
-#include <vector>
-#include <string>
-#include <fstream>
+#include "Core/Common.h"
 #include "Math/SmoothieMath.h"
 
 namespace Smoothie 

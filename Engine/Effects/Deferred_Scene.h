@@ -1,13 +1,13 @@
 #pragma once
-#include "Deferred_Pipeline.h"
+#include "Pipelines/Standard.h"
 #include "Core/Scene.h"
 #include "Core/Shader.h"
 
 #include "ResourceManager/XML.h"
 
-#include "Effects/Deferred_Model.h"
+#include "Models/Standard.h"
 
- namespace Smoothie::DeferredRendering
+namespace Smoothie::DeferredRendering
  {
 
      struct LoadableObject_Model: public Smoothie::LoadableObject_Base
@@ -19,7 +19,7 @@
          int recreate() override { return 0; };
 
 
-         std::shared_ptr<Standard_Model> model;
+         std::shared_ptr<Model_Standard> model;
 
          std::string shaderFile;
          std::string modelFile;

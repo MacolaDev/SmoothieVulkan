@@ -1,6 +1,4 @@
 #include "Mesh.h"
-#include <iostream>
-#include <mutex>
 #include "Core/SmoothieCore.h"
 
 static std::mutex mutex;

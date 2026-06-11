@@ -17,9 +17,6 @@ def main():
 
     args = parser.parse_args()
 
-    print("Getting correct SPIR-V libraries for glslang...")
-    subprocess.run([sys.executable, "update_glslang_sources.py"], cwd = "include/glslang")
-    
     print("Building libraries...")
     subprocess.run(["cmake",
                     "-S", "."

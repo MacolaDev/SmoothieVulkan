@@ -1,7 +1,4 @@
 #include "Scene.h"
-#include <filesystem>
-#include <iostream>
-#include <memory>
 
 #include "ResourceManager/XML.h"
 #include "Math/SmoothieMath.h"
@@ -11,7 +8,7 @@
 #include "Core/Shader.h"
 
 #include "Effects/Skybox.h"
-#include "Effects/Deferred_Pipeline.h"
+#include "../Effects/Pipelines/Standard.h"
 #include "Effects/Deferred_Core.h"
 #include "Core/SmoothieCore.h"
 

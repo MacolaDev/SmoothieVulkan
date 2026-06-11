@@ -1,6 +1,6 @@
 #include "Multithreading.h"
 #include "Core/SmoothieCore.h"
-#include <iostream>
+
 int Smoothie::ImmediateCommandBuffer::create()
 {
 	VkCommandPoolCreateInfo _poolCreateInfo{};
@@ -26,15 +26,6 @@ int Smoothie::ImmediateCommandBuffer::create()
 	}
 
 	m_BufferState = BufferState::Initial;
-
-	VkFenceCreateInfo _fenceCreateInfo{};
-	_fenceCreateInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
-	_fenceCreateInfo.flags = 0;
-	if (vkCreateFence(SmoothieCore::getDevice(), &_fenceCreateInfo, nullptr, &m_Fence) != VK_SUCCESS)
-	{
-		std::cout << "Failed to create fence" << std::endl;
-		return 1;
-	}
 
 	return 0;
 }
@@ -64,41 +55,25 @@ int Smoothie::ImmediateCommandBuffer::end()
 	return 0;
 }
 
-void Smoothie::ImmediateCommandBuffer::submit()
-{
-	VkSubmitInfo _submitInfo{};
-	_submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-	_submitInfo.commandBufferCount = 1;
-	_submitInfo.pCommandBuffers = &m_CommandBuffer;
-
-	const auto _queue = SmoothieCore::getGraphicsQueue();
-	vkQueueWaitIdle(_queue);
-	vkQueueSubmit(_queue, 1, &_submitInfo, m_Fence);
-	vkWaitForFences(SmoothieCore::getDevice(), 1, &m_Fence, VK_TRUE, UINT64_MAX);
-	vkResetFences(SmoothieCore::getDevice(), 1, &m_Fence);
-}
-
 void Smoothie::ImmediateCommandBuffer::submitAndWait()
 {
 	VkSubmitInfo _submitInfo{};
 	_submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 	_submitInfo.commandBufferCount = 1;
 	_submitInfo.pCommandBuffers = &m_CommandBuffer;
+	{
+	    auto _queue = SmoothieCore::getGraphicsQueue();
+	    std::lock_guard<std::mutex> _lock(SmoothieCore::getQueueSubmitMutex());
+	    vkQueueWaitIdle(_queue);
+	    vkQueueSubmit(_queue, 1, &_submitInfo, nullptr);
+	    vkQueueWaitIdle(_queue);
+	}
 
-	QueuedSubmitInfo _enginedSubmitInfo{};
-	_enginedSubmitInfo.fence = m_Fence;
-	_enginedSubmitInfo.submitInfos = {_submitInfo};
-	_enginedSubmitInfo.queue = SmoothieCore::getGraphicsQueue();
 
-	SmoothieCore::SubmitToExecutionQueue(_enginedSubmitInfo);
-
-	vkWaitForFences(SmoothieCore::getDevice(), 1, &m_Fence, VK_TRUE, UINT64_MAX);
-	vkResetFences(SmoothieCore::getDevice(), 1, &m_Fence);
 }
 
 void Smoothie::ImmediateCommandBuffer::destroy()
 {
-	vkDestroyFence(SmoothieCore::getDevice(), m_Fence, nullptr), m_Fence = nullptr;
 	vkDestroyCommandPool(SmoothieCore::getDevice(), m_CommandPool, nullptr), m_CommandPool = nullptr;
 	m_BufferState = BufferState::Invalid;
 	m_CommandBuffer = nullptr;

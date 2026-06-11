@@ -9,12 +9,21 @@
 
 
 using namespace SmoothieMath;
-constexpr float apsect_ratio = static_cast<float>(1280.0f / 720.0f);
-Smoothie::Camera FreeCamera::freeCamera = Smoothie::Camera(
-    { -0.0, 3.0f, 18.0f },
-    { 0.0f, 0.0f, -1.0f },
-    { 0.0f, 1.0f, 0.0f },
-    45.0f, apsect_ratio, 0.1f, 100.0f);
+static inline Smoothie::Camera defaultCameraSetup()
+{
+    Smoothie::Camera camera;
+    camera.setCameraPosition({-0.5, 3.0f, 18.0f});
+    camera.setCameraFront({ 0.0f, 0.0f, -1.0f });
+    camera.setCameraUp({ 0.0f, 1.0f, 0.0f });
+    camera.setFov(45.0f);
+    camera.setAspectRatio(1280.0f / 720.0f);
+    camera.setZNear(0.1f);
+    camera.setZFar(100.0f);
+    camera.updateCameraMatrices();
+    return camera;
+}
+
+Smoothie::Camera FreeCamera::freeCamera = defaultCameraSetup();
 
 float yaw = -90.0f;	// yaw is initialized to -90.0 degrees since a yaw of 0.0 results in a direction vector pointing to the right so we initially rotate a bit to the left.
 float pitch = 0.0f;
@@ -54,11 +63,12 @@ void FreeCamera::MouseCallback(GLFWwindow* window, double xposIn, double yposIn)
     if (pitch < -89.0f)
         pitch = -89.0f;
 
-    SmoothieMath::Vector3 front;
+    glm::vec3 front = glm::vec3(0.0f, 0.0f, -1.0f);
     front.x = cos(toRadians(yaw)) * cos(toRadians(pitch));
     front.y = sin(toRadians(pitch));
     front.z = sin(toRadians(yaw)) * cos(toRadians(pitch));
-    front.normalizeVector();
+    front = glm::normalize(front);
+
     freeCamera.setCameraFront(front);
     freeCamera.updateCameraMatrices();
     SmoothieCore::updateCameraData(freeCamera);
@@ -77,7 +87,7 @@ void FreeCamera::KeyboardCallback(GLFWwindow* window)
         glfwSetWindowShouldClose(window, true);
     }
 
-    SmoothieMath::Vector3 cameraPosition = freeCamera.getCameraPosition();
+    auto cameraPosition = freeCamera.getCameraPosition();
 
     float speed = cameraSpeed * deltaTime; // adjust accordingly
 
@@ -92,18 +102,15 @@ void FreeCamera::KeyboardCallback(GLFWwindow* window)
         cameraPosition -= freeCamera.getCameraFront() * speed;
     }
 
-
     if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
     {
-        auto d = cross(freeCamera.getCameraFront(), freeCamera.getCameraUp());
-        cameraPosition = cameraPosition - (normalize(d) * speed);
+        cameraPosition -= glm::normalize(glm::cross(freeCamera.getCameraFront(), freeCamera.getCameraUp())) * speed;
     }
 
 
     if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
     {
-        auto b = cross(freeCamera.getCameraFront(), freeCamera.getCameraUp());
-        cameraPosition = cameraPosition + (normalize(b) * speed);
+        cameraPosition += glm::normalize(glm::cross(freeCamera.getCameraFront(), freeCamera.getCameraUp())) * speed;
     }
 
     freeCamera.setCameraPosition(cameraPosition);
@@ -347,12 +354,13 @@ int SmoothieEngineInitInfo::create_device(VkDevice& device)
     createInfo.enabledExtensionCount = static_cast<unsigned int>(deviceExtentions.size());
     createInfo.ppEnabledExtensionNames = deviceExtentions.data();
 
-    VkPhysicalDeviceDynamicRenderingFeatures dynamicRenderingFeatures = {
-        .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_FEATURES,
-        .dynamicRendering = VK_TRUE,
-    };
+    VkPhysicalDeviceVulkan13Features features13 = {};
+    features13.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES;
+    features13.pNext = nullptr;
+    features13.dynamicRendering = true;
+    features13.synchronization2 = true;
 
-    createInfo.pNext = &dynamicRenderingFeatures;
+    createInfo.pNext = &features13;
     if (vkCreateDevice(SmoothieCore::getPhysicalDevice(), &createInfo, nullptr, &device) != VK_SUCCESS)
     {
         std::cout << "Could not create a device!" << std::endl;

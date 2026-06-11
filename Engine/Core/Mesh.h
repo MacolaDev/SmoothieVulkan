@@ -1,11 +1,7 @@
 #pragma once
 #include "VertexBuffer.h"
 #include "ResourceManager/GeometryFile.h"
-#include <string>
-#include <vulkan/vulkan.h>
-#include <memory>
-#include <vector>
-#include "vk_mem_alloc.h"
+#include "Common.h"
 
 
 namespace Smoothie 

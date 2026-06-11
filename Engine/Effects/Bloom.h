@@ -1,8 +1,6 @@
 #pragma once
-#include <vulkan/vulkan.h>
+#include "Core/Common.h"
 #include "Core/Effect.h"
-#include "vk_mem_alloc.h"
-#include <vector>
 
 namespace Smoothie {
 

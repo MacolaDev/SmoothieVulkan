@@ -1,30 +1,12 @@
 #pragma once
-#include "Core/RenderPass.h"
 #include "Core/Effect.h"
 #include "Core/Texture.h"
-#include "Effects/DeferredPasses.h"
 #include "Effects/Skybox.h"
 
 namespace Smoothie 
 {
 	namespace DeferredRendering
 	{
-
-		class Lighting_RenderPass: public RenderPass_Base
-		{
-		protected:
-
-		public:
-			Attachment_Color target;
-
-			int create() override;
-			int resize_callback() override;
-			void destroy() override;
-
-			void bindPass(VkCommandBuffer commandBuffer, unsigned int FrameID) const override;
-			void unbindPass(VkCommandBuffer commandBuffer, unsigned int FrameID) const override;
-			
-		};
 
 		class Lighting_Base: public Effect_Base 
 		{

@@ -2,15 +2,7 @@
 #include "ResourceManager/XML.h"
 
 #include "Core/SmoothieCore.h"
-#include "Core/RenderPass.h"
-#include "Core/CameraDescriptor.h"
-#include "Core/Pipeline.h"
 
-
-#include <limits>
-#include <random>
-#include <mutex>
-#include <iostream>
 
 using namespace Smoothie;
 using namespace SmoothieMath;

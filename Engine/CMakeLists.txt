@@ -11,18 +11,10 @@ file(GLOB_RECURSE SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/*.h" "${CMAKE_CURRENT_SOU
 
 add_library(SmoothieEngine STATIC ${SOURCES})
 
+target_precompile_headers(SmoothieEngine PRIVATE Core/Common.h)
+
 target_include_directories(SmoothieEngine PRIVATE ${CMAKE_SOURCE_DIR}/include/VulkanMemoryAllocator/include)
+target_include_directories(SmoothieEngine PRIVATE ${CMAKE_SOURCE_DIR}/include/glm)
 target_include_directories(SmoothieEngine PRIVATE ${CMAKE_SOURCE_DIR}/include/stb)
 target_include_directories(SmoothieEngine PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_include_directories(SmoothieEngine PRIVATE ${Vulkan_INCLUDE_DIR})
-
-#link_libraries()
-#set_target_properties(
-#    SmoothieEngine PROPERTIES
-#
-#    ARCHIVE_OUTPUT_DIRECTORY_DEBUG ${CMAKE_BINARY_DIR}/lib/Debug
-#    ARCHIVE_OUTPUT_DIRECTORY_RELEASE ${CMAKE_BINARY_DIR}/lib/Release
-#
-#    OBJECT_OUTPUT_DIRECTORY_DEBUG "${CMAKE_BINARY_DIR}/intermediate/Debug"
-#    OBJECT_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}/intermediate/Release"
-#)
