@@ -1,7 +1,5 @@
 #pragma once
 #include "Common.h"
-#include <queue>
-
 #include "Core/Camera.h"
 #include "Core/Scene.h"
 #include "Core/Constants.h"

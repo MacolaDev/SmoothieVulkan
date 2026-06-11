@@ -3,6 +3,8 @@
 #include <string>
 #include <vector>
 #include <unordered_map>
+#include <array>
+#include <queue>
 #include <memory>
 #include <cassert>
 #include <cmath>
