@@ -29,9 +29,4 @@ bin/SmoothieEditor
 bin/ShaderCompiler
 bin/Demo
 .idea/vcs.xml
-Testing/Temporary/LastTest.log
 *.ninja
-build.ninja
-Testing/
-.idea/*
-.idea/vcs.xml
