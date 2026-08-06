@@ -1,0 +1,15 @@
+geometry = "resources/DemoScene/Reflection_ball/Reflection_ball.sgeometry"
+shader = "shaders/pbr/pbr_hdr.sshader"
+
+[property]
+diffuse = "Models/Reflection_ball_diffuse.png"
+normalMap = "Models/Reflection_ball_normal.png"
+metalnessMap = "Models/Reflection_ball_diffuse.png"
+roughnessMap = "Models/Reflection_ball_diffuse.png"
+doubleSided = false
+useAlpha = false
+
+[BoundingBox]
+min = [1.0, -1.0, -1.0]
+max = [-1.0, 1.0, 1.0]
+

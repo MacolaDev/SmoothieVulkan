@@ -1,0 +1,15 @@
+geometry = "resources/DemoScene/House/House.sgeometry"
+shader = "shaders/pbr/pbr.sshader"
+
+[property]
+diffuse = "Models/HouseDiffuse.png"
+normalMap = "Models/HouseNormal.png"
+metalnessMap = "Models/HouseMetalness.png"
+roughnessMap = "Models/HouseRoughness.png"
+doubleSided = false
+useAlpha = false
+
+[BoundingBox]
+min = [6.4033, -7.6208, -0.016]
+max = [-6.0345, 7.0293, 6.7371]
+

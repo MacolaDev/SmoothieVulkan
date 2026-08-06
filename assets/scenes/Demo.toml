@@ -1,0 +1,35 @@
+#
+# Default scene
+#
+
+skybox = "resources/DemoScene/glencairn_expressway_4k.hdr"
+
+[[models.model]]
+position = [0.717276, 0.000000, 0.019547]
+scale = [1.000000, 1.000000, 1.000000]
+rotation = [0.000000, 0.000000, 0.000000]
+file = "Models/House.smodel"
+
+[[models.model]]
+position = [0.000000, 0.000000, 0.000000]
+scale = [1.000000, 1.000000, 1.000000]
+rotation = [0.000000, 0.000000, 0.000000]
+file = "Models/Floor.smodel"
+
+[[models.model]]
+position = [8.210665, -9.392744, 0.000000]
+scale = [1.000000, 1.000000, 1.000000]
+rotation = [89.999996, 0.000000, 0.000000]
+file = "Models/Tree/Tree.smodel"
+
+[[models.model]]
+position = [-8.216146, 9.318546, -0.025664]
+scale = [0.772732, 0.772732, 0.772732]
+rotation = [89.999996, 0.000000, -164.999994]
+file = "Models/Tree/Tree.smodel"
+
+[[models.model]]
+position = [8.664705, 8.236361, 1.972255]
+scale = [1.000000, 1.000000, 1.000000]
+rotation = [0.000000, 0.000000, 0.000000]
+file = "Models/Reflection_ball/Reflection_ball.smodel"

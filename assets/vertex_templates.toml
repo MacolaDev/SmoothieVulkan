@@ -1,0 +1,90 @@
+# ******************************************************************************************************************
+#
+# Configuration file for geometry processor in asset-pipeline.
+# It tells geometry processor how to handle input data and how to assamble buffers from that data.
+#
+# ******************************************************************************************************************
+#
+# Parameters:
+# [[attribute-template]] -> Required. Name of the target template, must be unique. 
+#                 Must be string.
+#
+# location     -> Required. Order of packing elements to the buffer. Similar to vertex location specifier in GLSL.
+#                 Must be integer.
+#
+# input-names  -> Required. Matches one of the elements with one of the buffers in input data. 
+#                 Must be array of strings. Array elements must be unique per template for all locations.
+#
+# input-type   -> Required. Tells geometry processor what input type is expected. 
+#                 Must be a valid Type.
+#
+# output-type  -> Required. Tells geometry processor what to output for this location.
+#                 Must be a valid Type.
+# 
+# conversion   -> Optional. If "input-type" and "output-type" are the same nothing happens, 
+#                 otherwise it must be specified. It tells geometry processor how to "input-type" to "output-type".
+#                 Must be a string.
+#
+# ******************************************************************************************************************
+# Type is defined as:
+#   Type = base_type
+# or:
+#   Type = [base_type, vector_size] 
+# 
+# Note that "Type = base_type" is threated the same as "Type = [base_type, 1]".
+# 
+# Possible values for base_types:
+#   int8   | uint8  | float32
+#   int16  | uint16 
+#   int32  | uint32              
+#   int64  | uint64
+#               
+# Possible vector_sizes: 1, 2, 3, 4
+# 
+# ******************************************************************************************************************                
+# Possible conversions: 
+# pack_normals_10_10_10_2 -> Normalizes float32 3 and packs its components as 10-bit values into 32-bit int. 
+#                            Last 2 bits are set to 0. Useful for normals.
+#
+# pack_uv                 -> Normalizes [float32, 3] and returns packed packed uint32. Useful for UV maps. 
+#
+# ******************************************************************************************************************
+# TODO: Add descriptions for other conversion functions.
+
+
+
+#********************************** Standard pipeline **********************************#
+[[standard]]
+location = 0
+input-names = ["POSITION"]
+input-type  = ["float32", 3]
+output-type = ["float32", 3]
+
+[[standard]]
+location = 1
+input-names = ["NORMAL"]
+input-type  = ["float32" , 3]
+output-type = ["float32" , 3] #"uint32"
+conversion  = "pack_normals_10_10_10_2"
+
+[[standard]]
+location = 2
+input-names = ["TEXCOORD_0"]
+input-type  = ["float32", 2]
+output-type = ["float32", 2] #"uint32"
+conversion  = "pack_uv"
+
+# [[standard]]
+# location = 3
+# input-names = ["TANGENT"]
+# input-type  = ["float32", 3]
+# output-type = ["float32", 3] #"uint32"
+# conversion  = "pack_normals_10_10_10_2"
+
+#***************************************************************************************#
+
+[[editor]]
+location = 0
+input-names = ["POSITION"]
+input-type  = ["float32", 3]
+output-type = ["float32", 3]

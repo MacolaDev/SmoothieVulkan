@@ -1,0 +1,10 @@
+geometry = "resources/DemoScene/Tree/Tree.sgeometry"
+shader = "shaders/pbr/treeItPBR.sshader"
+
+[property]
+
+
+[BoundingBox]
+min = [5.026, -0.0003, -4.3095]
+max = [-6.8093, 10.219, 4.8632]
+

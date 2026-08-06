@@ -1,7 +1,7 @@
 import subprocess
-import os
-import sys
 import argparse
+
+import scripts.process_assets
 
 allowed_configurations = ["Debug", "Release"]
 
@@ -17,7 +17,7 @@ def main():
 
     args = parser.parse_args()
 
-    print("Building libraries...")
+    print("Building binaries...")
     subprocess.run(["cmake",
                     "-S", "."
                     "-B", "."])
@@ -27,12 +27,8 @@ def main():
                     "--config", args.config])
 
 
-
-    print("Compiling shaders..")
-    subprocess.run([sys.executable, "compile_shaders.py"], cwd = "bin")
-
-
-
+    print("Processing assets...")
+    scripts.process_assets.process_assets()
 
 
 if __name__ == '__main__':

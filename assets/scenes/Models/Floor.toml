@@ -1,0 +1,15 @@
+geometry = "resources/DemoScene/Floor/Floor.sgeometry"
+shader = "shaders/pbr/pbr.sshader"
+
+[property]
+diffuse = "Models/ForestGroundDiffuse.png"
+normalMap = "Models/ForestGroundNormal.png"
+metalnessMap = "Models/ForestGroundMetalness.png"
+roughnessMap = "Models/ForestGroundRoughness.png"
+doubleSided = true
+useAlpha = false
+
+[BoundingBox]
+min = [13.2322, -13.2322, 0.0]
+max = [-13.2322, 13.2322, 0.0]
+

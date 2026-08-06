@@ -14,3 +14,15 @@
 [submodule "include/glm"]
 	path = include/glm
 	url = https://github.com/g-truc/glm.git
+[submodule "include/toml11"]
+	path = include/toml11
+	url = https://github.com/ToruNiina/toml11.git
+[submodule "include/tinygltf"]
+	path = include/tinygltf
+	url = https://github.com/syoyo/tinygltf.git
+[submodule "include/fmt"]
+	path = include/fmt
+	url = https://github.com/fmtlib/fmt.git
+[submodule "include/libuv"]
+	path = include/libuv
+	url = https://github.com/libuv/libuv.git

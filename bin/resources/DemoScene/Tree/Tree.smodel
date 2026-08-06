@@ -1,9 +1,0 @@
-<model>
-  <geometryFile>resources/DemoScene/Tree/Tree.sgeometry</geometryFile>
-  <shader>shaders/pbr/treeItPBR.sshader</shader>
-  <property/>
-  <BoundingBox>
-    <min>5.026 -0.0003 -4.3095</min>
-    <max>-6.8093 10.219 4.8632</max>
-  </BoundingBox>
-</model>
